@@ -13,8 +13,8 @@ pfix=''
 os.mkdir('condor_'+date+pfix)
 outDir=runDir+'/'+'condor_'+date+pfix
 
-NtotModules = 13196 #Nentries in dPdT.root
-NmodulePerJob = 30
+NtotModules = 5#13196 #Nentries in dPdT.root
+NmodulePerJob = 2#30
 
 countJobs=0
 for it in range(0,NtotModules/NmodulePerJob+1): # dpdtentries=11828

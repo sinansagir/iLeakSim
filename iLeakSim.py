@@ -15,14 +15,14 @@ if len(sys.argv)>3: OutputTree=sys.argv[3]
 else: OutputTree="treeout"+str(iteration)+".root"
 
 inputDir = "" # placeholder if absolute path is needed!
-Flumatch  = inputDir+"FluenceMatching.root"
-TempinTOB = inputDir+"LumiPerDay_TOB.txt"
-TempinTIB = inputDir+"LumiPerDay_TIB.txt"
-TempinTECm= inputDir+"LumiPerDay_TECn.txt"
-TempinTECp= inputDir+"LumiPerDay_TECp.txt"
-InitTemp  = inputDir+"TempTree0.root"
-TempChange= inputDir+"dPdT.root"
-InitLeak  = inputDir+"IleakTree0.root"
+Flumatch  = inputDir+"InputData/FluenceMatching.root"
+TempinTOB = inputDir+"InputData/LumiPerDay_TOB.txt"
+TempinTIB = inputDir+"InputData/LumiPerDay_TIB.txt"
+TempinTECm= inputDir+"InputData/LumiPerDay_TECn.txt"
+TempinTECp= inputDir+"InputData/LumiPerDay_TECp.txt"
+InitTemp  = inputDir+"InputData/TempTree0.root"
+TempChange= inputDir+"InputData/dPdT.root"
+InitLeak  = inputDir+"InputData/IleakTree0.root"
 
 #/////////////////////////////////////////////////////////////////////////////////////////
 #*************************** Read in Data from Input Files *******************************
