@@ -1,0 +1,22 @@
+CUMULATIVE_LUMI_INVNB
+********************************************************************************
+* Sun Jan 10 04:13:54 2016 UTC
+* lumitype: HF , datatag: v12 , normtag: HFV2f , worktag: UNKNOWN
+* 
+* by:
+* /afs/cern.ch/user/s/sisagir/radMonitoring/CMSSW_7_3_0/bin/slc6_amd64_gcc491/lumiCalc2.py
+* 
+* update: NONE
+********************************************************************************
+ ==  = 
+|    Run:Fill | Delivered LS |     Delivered | Selected LS |      Recorded |
+----------------------------------------------------------------------------
+| 209089:3441 |          334 |   1.001 (/pb) |     [1-313] | 983.005 (/nb) |
+| 209106:3442 |          324 |   2.037 (/pb) |     [1-324] |   2.007 (/pb) |
+| 209109:3442 |           76 | 232.237 (/nb) |      [1-72] | 224.647 (/nb) |
+
+ ==  =  Total : 
+| Delivered LS | Delivered(/pb) | Selected LS | Recorded(/pb) |
+---------------------------------------------------------------
+|          734 |          3.270 |         709 |         3.215 |
+

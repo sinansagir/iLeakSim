@@ -1,0 +1,2 @@
+CUMULATIVE_LUMI_INVNB
+[INFO] No qualified run found, do nothing

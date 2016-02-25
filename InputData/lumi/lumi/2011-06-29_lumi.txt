@@ -1,0 +1,21 @@
+CUMULATIVE_LUMI_INVNB
+[INFO] No qualified trg data found for run  167969
+********************************************************************************
+* Sun Jan 10 04:00:51 2016 UTC
+* lumitype: HF , datatag: v12 , normtag: HFV2f , worktag: UNKNOWN
+* 
+* by:
+* /afs/cern.ch/user/s/sisagir/radMonitoring/CMSSW_7_3_0/bin/slc6_amd64_gcc491/lumiCalc2.py
+* 
+* update: NONE
+********************************************************************************
+ ==  = 
+|    Run:Fill | Delivered LS |   Delivered | Selected LS |    Recorded |
+------------------------------------------------------------------------
+| 167969:1902 |          410 | 2.744 (/ub) |  [691-1091] | 0.000 (/ub) |
+
+ ==  =  Total : 
+| Delivered LS | Delivered(/ub) | Selected LS | Recorded(/ub) |
+---------------------------------------------------------------
+|          410 |          2.744 |         401 |         0.000 |
+
