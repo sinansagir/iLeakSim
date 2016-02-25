@@ -11,26 +11,20 @@ gROOT.SetBatch(1)
 ##################################################################################################################
 
 #******************************Input to edit******************************************************
-measDataPath = "/home/ssagir/radMonitoring/CMSSW_7_3_0/src/iLeakSim_Feb16_leakCalcV1/MeasData/SingleModules"
-simDate = "2016_2_19"
+measDataPath = "MeasData/SingleModules"
+simDate = "2016_2_20_11_15_20"
 readTree=False # This needs to be true if running the code on the tree for the first time. It will dump what's read from tree into pickle files and these can be loaded if this option is set to "False"
 isCurrentScaled = False # Scale current to measured temperature (Check how this is done!!!! The default method assumes that the simulated current is at 20C)
-QuerrMods=[470426096,470426092,470426088,470426084,470426026,470426025,470426022,470426021,436277848,
-		   436277844,436277840,436277836,436277832,436277828,436266360,436266356,436266352,436266348,
-		   436266344,436266340,369153148,369153144,369153140,369153132,369153128,369153124,369153116,
-		   369153112,369153108,369124382,369124381,369124378,369124374,369124373,369120382,369120381,
-		   369120378,369120377,369120374,369120373,369138089,369171080,369175356,436228142,436228562,
-		   436316264,470046634,470061486,470078021,470308774,470308781,470309068,470311846,470339910,
-		   470345289,470357996]
+QuerrMods=[369120378,402672418,436228134,470046629]
 
-def findfiles(path, filtre):
-    for root, dirs, files in os.walk(path):
-        for f in fnmatch.filter(files, filtre):
-            yield os.path.join(root, f)
-
-QuerrMods = []
-for file in findfiles(measDataPath+'/Ileak/', '*.txt'):
-    QuerrMods.append(int(file.split('/')[-1][:-4]))
+# def findfiles(path, filtre):
+#     for root, dirs, files in os.walk(path):
+#         for f in fnmatch.filter(files, filtre):
+#             yield os.path.join(root, f)
+# 
+# QuerrMods = []
+# for file in findfiles(measDataPath+'/Ileak/', '*.txt'):
+#     QuerrMods.append(int(file.split('/')[-1][:-4]))
 
 #READ IN TREE
 InTreeSim="DarkSimAllModules_"+simDate+"/DarkSimAllModules_"+simDate+".root"

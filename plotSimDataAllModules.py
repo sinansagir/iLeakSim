@@ -11,15 +11,13 @@ gROOT.SetBatch(1)
 ##################################################################################################################
 
 #******************************Input to edit******************************************************
-measDataPath = "/home/ssagir/radMonitoring/CMSSW_7_3_0/src/iLeakSim_Feb16_leakCalcV1/MeasData/AllModules"
+measDataPath = "MeasData/AllModules"
 simDate = "2016_2_20_11_15_20"
-Dates=["19-03-2011","25-04-2011","27-05-2011","10-09-2011","15-11-2011","02-04-2012","09-05-2012","30-09-2012","30-01-2013","14-02-2013","24-10-2013","05-01-2015","06-05-2015","21-06-2015","14-07-2015","16-07-2015","20-07-2015"]
-IleakMax=[30.,30.,30.,350.,400.,400.,450.,1500.,2000.,2000.,2000.,800.,200.,200.,200.,200.,200.]
-TempMax=[50.,50.,50.,50.,50.,50.,50.,50.,50.,50.,50.,50.,20.,20.,20.,20.,20.]
-Dates+=["17-08-2015","20-09-2015","16-10-2015","03-11-2015","11-12-2015"]
-IleakMax+=[200.,200.,200.,200.,200.]
-TempMax+=[20.,20.,20.,20.,20.]
-plotBadModules=True
+Dates=["02-04-2012","30-01-2013","11-12-2015"]
+IleakMax=[400.,2000.,200.]
+TempMax=[50.,50.,20.]
+
+plotBadModules=False
 readTree=False # This needs to be true if running the code on the tree for the first time. It will dump what's read from tree into pickle files and these can be loaded if this option set to "False"
 scaleCurrentToMeasTemp = True # Scale current to measured temperature (Check how this is done!!!! The default method assumes that the simulated current is at 20C)
 
@@ -92,7 +90,7 @@ hi_badmodules,ht_badmodules={},{}
 outlierModules_I,outlierModules_T={},{}
 for q in range(len(Dates)):
 	QDate  = Dates[q]
-	if QDate!='11-12-2015': continue
+	#if QDate!='11-12-2015': continue
 	qday   = int(QDate[:2])
 	qmonth = int(QDate[3:5])
 	qyear  = int(QDate[6:])
@@ -176,86 +174,75 @@ for q in range(len(Dates)):
 	modDataFileTForTKmap = open(saveNameT+'.txt','w')
 	
 	nMods=0
-	for i in range(simTree.GetEntries()):
-		if ileakc_t_on[detid_t[i]][QuerrDay]*1000>0 and ileakc_t_on[detid_t[i]][QuerrDay]<1000:
-			isIleakMatched,isTempMatched=False,False
-			for j in range(len(detid_dd_I)):
-				if isIleakMatched and isTempMatched: break
-				if not isIleakMatched:
-					try: 
-						isIleakMatched = detid_t[i]==detid_dd_I[j]
-						if isIleakMatched: iLeakMatchInd = j
-					except: pass
-				if not isTempMatched:
-					try: 
-						isTempMatched = detid_t[i]==detid_dd_T[j]
-						if isTempMatched: tempMatchInd = j
-					except: pass
-			if isIleakMatched and isTempMatched:
-				#if scaleCurrentToMeasTemp: currentScaleMeasTemp = LeakCorrection(293.16,temp_t_on[detid_t[i]][QuerrDay])*LeakCorrection(temp_dd[tempMatchInd]+273.16,293.16) # if current is already scaled to simulated temperature in the simulation (for old simulation files, this is not done anymore)
-				#if not scaleCurrentToMeasTemp: currentScaleMeasTemp = 1 # if current is already scaled to simulated temperature in the simulation (for old simulation files, this is not done anymore)
-				if temp_t_on[detid_t[i]][QuerrDay]<263.16 or temp_t_on[detid_t[i]][QuerrDay]>323.16 or temp_dd[tempMatchInd]<-20. or temp_dd[tempMatchInd]>50. or ileak_dd[iLeakMatchInd]>2000 or ileak_dd[iLeakMatchInd]<0: continue
-				if scaleCurrentToMeasTemp: currentScaleMeasTemp = LeakCorrection(temp_dd[tempMatchInd]+273.16,293.16)
-				if not scaleCurrentToMeasTemp: currentScaleMeasTemp = LeakCorrection(temp_t_on[detid_t[i]][QuerrDay],293.16)
-				if partition_t[detid_t[i]]==1 or partition_t[detid_t[i]]==2: # TIB
-					detid_f1.append(detid_t[i])
-					ileakson_f1.append(ileakc_t_on[detid_t[i]][QuerrDay]*1000*currentScaleMeasTemp)
-					ileakd_f1.append(ileak_dd[iLeakMatchInd])
-					hi_TIB[QDate].Fill((ileakc_t_on[detid_t[i]][QuerrDay]*1000*currentScaleMeasTemp-ileak_dd[iLeakMatchInd])/ileak_dd[iLeakMatchInd])
-					i1+=1
-					ts_f1.append(temp_t_on[detid_t[i]][QuerrDay]-273.16)
-					td_f1.append(temp_dd[tempMatchInd])
-					ht_TIB[QDate].Fill((temp_t_on[detid_t[i]][QuerrDay]-273.16-temp_dd[tempMatchInd])/temp_dd[tempMatchInd])
-					t1+=1
-				if partition_t[detid_t[i]]==3 or partition_t[detid_t[i]]==4: # TOB
-					detid_f2.append(detid_t[i])
-					ileakson_f2.append(ileakc_t_on[detid_t[i]][QuerrDay]*1000*currentScaleMeasTemp)
-					ileakd_f2.append(ileak_dd[iLeakMatchInd])
-					hi_TOB[QDate].Fill((ileakc_t_on[detid_t[i]][QuerrDay]*1000*currentScaleMeasTemp-ileak_dd[iLeakMatchInd])/ileak_dd[iLeakMatchInd])
-					i2+=1
-					ts_f2.append(temp_t_on[detid_t[i]][QuerrDay]-273.16)
-					td_f2.append(temp_dd[tempMatchInd])
-					ht_TOB[QDate].Fill((temp_t_on[detid_t[i]][QuerrDay]-273.16-temp_dd[tempMatchInd])/temp_dd[tempMatchInd])
-					t2+=1
-				if partition_t[detid_t[i]]==5 or partition_t[detid_t[i]]==6: # TID
-					detid_f3.append(detid_t[i])
-					ileakson_f3.append(ileakc_t_on[detid_t[i]][QuerrDay]*1000*currentScaleMeasTemp)
-					ileakd_f3.append(ileak_dd[iLeakMatchInd])
-					hi_TID[QDate].Fill((ileakc_t_on[detid_t[i]][QuerrDay]*1000*currentScaleMeasTemp-ileak_dd[iLeakMatchInd])/ileak_dd[iLeakMatchInd])
-					i3+=1
-					ts_f3.append(temp_t_on[detid_t[i]][QuerrDay]-273.16)
-					td_f3.append(temp_dd[tempMatchInd])
-					ht_TID[QDate].Fill((temp_t_on[detid_t[i]][QuerrDay]-273.16-temp_dd[tempMatchInd])/temp_dd[tempMatchInd])
-					t3+=1
-				if partition_t[detid_t[i]]==7 or partition_t[detid_t[i]]==8: # TEC
-					detid_f4.append(detid_t[i])
-					ileakson_f4.append(ileakc_t_on[detid_t[i]][QuerrDay]*1000*currentScaleMeasTemp)
-					ileakd_f4.append(ileak_dd[iLeakMatchInd])
-					hi_TEC[QDate].Fill((ileakc_t_on[detid_t[i]][QuerrDay]*1000*currentScaleMeasTemp-ileak_dd[iLeakMatchInd])/ileak_dd[iLeakMatchInd])
-					i4+=1
-					ts_f4.append(temp_t_on[detid_t[i]][QuerrDay]-273.16)
-					td_f4.append(temp_dd[tempMatchInd])
-					ht_TEC[QDate].Fill((temp_t_on[detid_t[i]][QuerrDay]-273.16-temp_dd[tempMatchInd])/temp_dd[tempMatchInd])
-					t4+=1
-				pullIleak=(ileakc_t_on[detid_t[i]][QuerrDay]*1000*currentScaleMeasTemp-ileak_dd[iLeakMatchInd])/ileak_dd[iLeakMatchInd]
-				if abs(pullIleak) > 0.6:
-					isimbadmods.append(ileakc_t_on[detid_t[i]][QuerrDay]*1000*currentScaleMeasTemp)
-					idatbadmods.append(ileak_dd[iLeakMatchInd])
-					badModFileI.write('Mod Number: '+str(detid_t[i])+'\t'+'IleakSim = '+str(ileakc_t_on[detid_t[i]][QuerrDay]*1000*currentScaleMeasTemp)+'\t'+'IleakData = '+str(ileak_dd[iLeakMatchInd])+'\t'+'TempSim = '+str(temp_t_on[detid_t[i]][QuerrDay]-273.16)+'\t'+'TempData = '+str(temp_dd[tempMatchInd])+'\n')
-					outlierModules_I[QDate].append(detid_t[i])
-				modDataFileIForTKmap.write('Mod Number: '+str(detid_t[i])+'\t'+'IleakSim = '+str(ileakc_t_on[detid_t[i]][QuerrDay]*1000*currentScaleMeasTemp)+'\t'+'IleakData = '+str(ileak_dd[iLeakMatchInd])+'\n')
-				pullTemp=(temp_t_on[detid_t[i]][QuerrDay]-273.16-temp_dd[tempMatchInd])/temp_dd[tempMatchInd]
-				#if abs(pullTemp) > 0.4 and abs(temp_t_on[detid_t[i]][QuerrDay]-273.16-temp_dd[tempMatchInd])>2:
-				if abs(pullIleak) > 0.6:
-					tsimbadmods.append(temp_t_on[detid_t[i]][QuerrDay]-273.16)
-					tdatbadmods.append(temp_dd[tempMatchInd])
-					badModFileT.write('Mod Number: '+str(detid_t[i])+'\t'+'TempSim = '+str(temp_t_on[detid_t[i]][QuerrDay]-273.16)+'\t'+'TempData = '+str(temp_dd[tempMatchInd])+'\n')
-					outlierModules_T[QDate].append(detid_t[i])
-				modDataFileTForTKmap.write('Mod Number: '+str(detid_t[i])+'\t'+'TempSim = '+str(temp_t_on[detid_t[i]][QuerrDay]-273.16)+'\t'+'TempData = '+str(temp_dd[tempMatchInd])+'\n')
-				hi_all[QDate].Fill(pullIleak)
-				ht_all[QDate].Fill(pullTemp)
-				nMods+=1
-				if nMods%1000==0: print "Finished matching detids for", nMods, "/", simTree.GetEntries(), "modules!"
+	for module in detid_dd_I:
+		if module not in detid_dd_T or module not in detid_t: continue
+		if ileakc_t_on[module][QuerrDay]*1000<0 or ileakc_t_on[module][QuerrDay]>1000: continue
+		if temp_t_on[module][QuerrDay]<263.16 or temp_t_on[module][QuerrDay]>323.16: continue
+		iLeakMatchInd = detid_dd_I.index(module)
+		tempMatchInd  = detid_dd_T.index(module)
+		if ileak_dd[iLeakMatchInd]>2000 or ileak_dd[iLeakMatchInd]<0: continue
+		if temp_dd[tempMatchInd]<-20. or temp_dd[tempMatchInd]>50.: continue
+		if scaleCurrentToMeasTemp: currentScaleMeasTemp = LeakCorrection(temp_dd[tempMatchInd]+273.16,293.16)
+		if not scaleCurrentToMeasTemp: currentScaleMeasTemp = LeakCorrection(temp_t_on[module][QuerrDay],293.16)
+		if partition_t[module]==1 or partition_t[module]==2: # TIB
+			detid_f1.append(module)
+			ileakson_f1.append(ileakc_t_on[module][QuerrDay]*1000*currentScaleMeasTemp)
+			ileakd_f1.append(ileak_dd[iLeakMatchInd])
+			hi_TIB[QDate].Fill((ileakc_t_on[module][QuerrDay]*1000*currentScaleMeasTemp-ileak_dd[iLeakMatchInd])/ileak_dd[iLeakMatchInd])
+			i1+=1
+			ts_f1.append(temp_t_on[module][QuerrDay]-273.16)
+			td_f1.append(temp_dd[tempMatchInd])
+			ht_TIB[QDate].Fill((temp_t_on[module][QuerrDay]-273.16-temp_dd[tempMatchInd])/temp_dd[tempMatchInd])
+			t1+=1
+		if partition_t[module]==3 or partition_t[module]==4: # TOB
+			detid_f2.append(module)
+			ileakson_f2.append(ileakc_t_on[module][QuerrDay]*1000*currentScaleMeasTemp)
+			ileakd_f2.append(ileak_dd[iLeakMatchInd])
+			hi_TOB[QDate].Fill((ileakc_t_on[module][QuerrDay]*1000*currentScaleMeasTemp-ileak_dd[iLeakMatchInd])/ileak_dd[iLeakMatchInd])
+			i2+=1
+			ts_f2.append(temp_t_on[module][QuerrDay]-273.16)
+			td_f2.append(temp_dd[tempMatchInd])
+			ht_TOB[QDate].Fill((temp_t_on[module][QuerrDay]-273.16-temp_dd[tempMatchInd])/temp_dd[tempMatchInd])
+			t2+=1
+		if partition_t[module]==5 or partition_t[module]==6: # TID
+			detid_f3.append(module)
+			ileakson_f3.append(ileakc_t_on[module][QuerrDay]*1000*currentScaleMeasTemp)
+			ileakd_f3.append(ileak_dd[iLeakMatchInd])
+			hi_TID[QDate].Fill((ileakc_t_on[module][QuerrDay]*1000*currentScaleMeasTemp-ileak_dd[iLeakMatchInd])/ileak_dd[iLeakMatchInd])
+			i3+=1
+			ts_f3.append(temp_t_on[module][QuerrDay]-273.16)
+			td_f3.append(temp_dd[tempMatchInd])
+			ht_TID[QDate].Fill((temp_t_on[module][QuerrDay]-273.16-temp_dd[tempMatchInd])/temp_dd[tempMatchInd])
+			t3+=1
+		if partition_t[module]==7 or partition_t[module]==8: # TEC
+			detid_f4.append(module)
+			ileakson_f4.append(ileakc_t_on[module][QuerrDay]*1000*currentScaleMeasTemp)
+			ileakd_f4.append(ileak_dd[iLeakMatchInd])
+			hi_TEC[QDate].Fill((ileakc_t_on[module][QuerrDay]*1000*currentScaleMeasTemp-ileak_dd[iLeakMatchInd])/ileak_dd[iLeakMatchInd])
+			i4+=1
+			ts_f4.append(temp_t_on[module][QuerrDay]-273.16)
+			td_f4.append(temp_dd[tempMatchInd])
+			ht_TEC[QDate].Fill((temp_t_on[module][QuerrDay]-273.16-temp_dd[tempMatchInd])/temp_dd[tempMatchInd])
+			t4+=1
+		pullIleak=(ileakc_t_on[module][QuerrDay]*1000*currentScaleMeasTemp-ileak_dd[iLeakMatchInd])/ileak_dd[iLeakMatchInd]
+		if pullIleak < -0.1:
+			isimbadmods.append(ileakc_t_on[module][QuerrDay]*1000*currentScaleMeasTemp)
+			idatbadmods.append(ileak_dd[iLeakMatchInd])
+			badModFileI.write('Mod Number: '+str(module)+'\t'+'IleakSim = '+str(ileakc_t_on[module][QuerrDay]*1000*currentScaleMeasTemp)+'\t'+'IleakData = '+str(ileak_dd[iLeakMatchInd])+'\t'+'TempSim = '+str(temp_t_on[module][QuerrDay]-273.16)+'\t'+'TempData = '+str(temp_dd[tempMatchInd])+'\n')
+			outlierModules_I[QDate].append(module)
+		modDataFileIForTKmap.write('Mod Number: '+str(module)+'\t'+'IleakSim = '+str(ileakc_t_on[module][QuerrDay]*1000*currentScaleMeasTemp)+'\t'+'IleakData = '+str(ileak_dd[iLeakMatchInd])+'\n')
+		pullTemp=(temp_t_on[module][QuerrDay]-273.16-temp_dd[tempMatchInd])/temp_dd[tempMatchInd]
+		#if abs(pullTemp) > 0.4 and abs(temp_t_on[module][QuerrDay]-273.16-temp_dd[tempMatchInd])>2:
+		if abs(pullIleak) > 0.6:
+			tsimbadmods.append(temp_t_on[module][QuerrDay]-273.16)
+			tdatbadmods.append(temp_dd[tempMatchInd])
+			badModFileT.write('Mod Number: '+str(module)+'\t'+'TempSim = '+str(temp_t_on[module][QuerrDay]-273.16)+'\t'+'TempData = '+str(temp_dd[tempMatchInd])+'\n')
+			outlierModules_T[QDate].append(module)
+		modDataFileTForTKmap.write('Mod Number: '+str(module)+'\t'+'TempSim = '+str(temp_t_on[module][QuerrDay]-273.16)+'\t'+'TempData = '+str(temp_dd[tempMatchInd])+'\n')
+		hi_all[QDate].Fill(pullIleak)
+		ht_all[QDate].Fill(pullTemp)
+		nMods+=1
+		if nMods%1000==0: print "Finished matching detids for", nMods, "/", simTree.GetEntries(), "modules!"
 	
 	print "*** Finished matching data and simulation! Plotting results now! ***"
 	I1n = TGraph(i1,np.array(ileakson_f1),np.array(ileakd_f1))
@@ -476,30 +463,6 @@ for q in range(len(Dates)):
 	ht_TEC[QDate].Write()
 outRfile.Close()
 simFile.Close()
-
-outliersAllTime_I = []
-for mod in outlierModules_I[Dates[-1]]:
-	checkMods=[False]*len(Dates[6:])
-	ind = 0
-	for date in outlierModules_I.keys():
-		if date in Dates[:6]: continue
-		if mod in outlierModules_I[date]: checkMods[ind]=True
-		ind+=1
-	if all(checkMods): outliersAllTime_I.append(mod)
-
-outliersAllTime_T = []
-for mod in outlierModules_T[Dates[-1]]:
-	for date in outlierModules_T.keys():
-		if date in Dates[:6]: continue
-		if mod in outlierModules_T[date]: outliersAllTime_T.append(mod)
-
-savePath = "DarkSimAllModules_"+simDate+"/plotAllModules/"
-outliersAllTime_FileIForTKmap = open(savePath+'Ileak_allOutliers.txt','w')
-outliersAllTime_FileTForTKmap = open(savePath+'TSil_allOutliers.txt','w')
-for mod in outliersAllTime_I:
-	outliersAllTime_FileIForTKmap.write(str(mod)+'\n')
-for mod in outliersAllTime_T:
-	outliersAllTime_FileTForTKmap.write(str(mod)+'\n')
 	
 print "***************************** DONE *********************************"
   
