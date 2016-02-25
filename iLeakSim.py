@@ -21,7 +21,7 @@ TempinTIB = inputDir+"LumiPerDay_TIB.txt"
 TempinTECm= inputDir+"LumiPerDay_TECn.txt"
 TempinTECp= inputDir+"LumiPerDay_TECp.txt"
 InitTemp  = inputDir+"TempTree0.root"
-TempChange= inputDir+"dPdTfromErik.root"
+TempChange= inputDir+"dPdT.root"
 InitLeak  = inputDir+"IleakTree0.root"
 
 #/////////////////////////////////////////////////////////////////////////////////////////

@@ -2,8 +2,7 @@
 
 import os,datetime
 
-#runDir=os.getcwd()
-runDir=os.environ['CMSSW_BASE']+'/src/iLeakSim_Feb16_leakCalcV1'
+runDir=os.environ['CMSSW_BASE']+'/src/iLeakSim_master'
 
 cTime=datetime.datetime.now()
 date='%i_%i_%i'%(cTime.year,cTime.month,cTime.day)
@@ -14,7 +13,7 @@ pfix=''
 os.mkdir('condor_'+date+pfix)
 outDir=runDir+'/'+'condor_'+date+pfix
 
-NtotModules = 13196 #Nentries in dPdTfromErik.root
+NtotModules = 13196 #Nentries in dPdT.root
 NmodulePerJob = 30
 
 countJobs=0
