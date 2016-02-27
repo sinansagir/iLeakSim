@@ -3,27 +3,9 @@
 import os, sys, fnmatch
 import math
 
-condorDirName = 'condor_2016_2_20_11_15_20'
-condorDir = '/home/ssagir/radMonitoring/CMSSW_7_3_0/src/iLeakSim_Feb16_leakCalcV1/'
+################# [<condor dir name>, <start job id>, <end job id>] ###########
+condordirlist = [['condor_2016_2_20_11_15_20', 0, 439]]
 
-def finddirs(path, filtre):
-    for root, dirs, files in os.walk(path):
-        for dir in fnmatch.filter(dirs, filtre):
-            yield os.path.join(root, dir)
-
-def findfiles(path, filtre):
-    for root, dirs, files in os.walk(path):
-        for f in fnmatch.filter(files, filtre):
-            yield os.path.join(root, f)
-
-# condordirlist = []
-# for condordir in finddirs(condorDir, 'condor_*'):
-#     entrynumberlist = []
-#     for logfile in findfiles(condordir, '*.log'):
-#     	entrynumberlist.append(int(logfile[logfile.find('entry_')+6:logfile.find('.log')]))
-#     condordirlist.append((condordir.split('/')[-1],min(entrynumberlist),max(entrynumberlist)))
-
-condordirlist = [[condorDirName, 0, 439]]
 njobs = 0
 for condor in condordirlist:
 	count=0

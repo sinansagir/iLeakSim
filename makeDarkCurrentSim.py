@@ -2,22 +2,21 @@
 
 import os,datetime
 
-runDir=os.environ['CMSSW_BASE']+'/src/iLeakSim_master'
+runDir=os.environ['CMSSW_BASE']+'/src/iLeakSim'
 
 cTime=datetime.datetime.now()
 date='%i_%i_%i'%(cTime.year,cTime.month,cTime.day)
 time='%i_%i_%i'%(cTime.hour,cTime.minute,cTime.second)
 pfix=''
-#pfix+='_'+time
 
 os.mkdir('condor_'+date+pfix)
-outDir=runDir+'/'+'condor_'+date+pfix
+outDir=runDir+'/'+'condor_'+pfix+date#+'_'+time
 
 NtotModules = 13196 #Nentries in dPdT.root
 NmodulePerJob = 30
 
 countJobs=0
-for it in range(0,NtotModules/NmodulePerJob+1): # dpdtentries=11828
+for it in range(0,NtotModules/NmodulePerJob+1):
 	outfile=outDir+'/entry_'+str(it)+'.root'
 	dict={'RUNDIR':runDir, 'OUTFILE':outfile, 'ENTRY':it, 'Nmods':NmodulePerJob}
 	jdfName=outDir+'/entry_%i.job'%(it)

@@ -105,38 +105,6 @@ for file in PLClines_TAir.keys():
 		PLCtempsTAir[TDatime(int(data[1].strip()[:-3])).GetDate()].append(float(data[3].strip()))
 		PLCtemptimesTAir[TDatime(int(data[1].strip()[:-3])).GetDate()].append(int(data[1].strip()[:-3]))
 
-#Read LV status to get the shut-down periods		
-# fLV = open('TEC_minus_2.1.1.1.1_LV_Digital.csv', 'rU')
-# LVlines = fLV.readlines()
-# fLV.close()
-# fLV_2 = open('TIB_minus_1.2.1.4_LV_Analog.csv', 'rU')
-# LVlines_2 = fLV_2.readlines()
-# fLV_2.close()
-# fLV_3 = open('TIB_minus_2.2.1.1_LV_Analog.csv', 'rU')
-# LVlines_3 = fLV_3.readlines()
-# fLV_3.close()
-# for line in LVlines:
-# 	data = line.strip().split('"')
-# 	try: TDatime(int(data[1].strip()[:-3])).GetDate(),data[3].strip()
-# 	except: continue
-# 	if TDatime(int(data[1].strip()[:-3])).GetDate() not in dates: continue
-# 	LVstates[TDatime(int(data[1].strip()[:-3])).GetDate()].append(float(data[3].strip()))
-# 	LVstatetimes[TDatime(int(data[1].strip()[:-3])).GetDate()].append(int(data[1].strip()[:-3]))
-# for line in LVlines_2:
-# 	data = line.strip().split('"')
-# 	try: TDatime(int(data[1].strip()[:-3])).GetDate(),data[3].strip()
-# 	except: continue
-# 	if TDatime(int(data[1].strip()[:-3])).GetDate() not in dates: continue
-# 	LVstates[TDatime(int(data[1].strip()[:-3])).GetDate()].append(float(data[3].strip()))
-# 	LVstatetimes[TDatime(int(data[1].strip()[:-3])).GetDate()].append(int(data[1].strip()[:-3]))
-# for line in LVlines_3:
-# 	data = line.strip().split('"')
-# 	try: TDatime(int(data[1].strip()[:-3])).GetDate(),data[3].strip()
-# 	except: continue
-# 	if TDatime(int(data[1].strip()[:-3])).GetDate() not in dates: continue
-# 	LVstates[TDatime(int(data[1].strip()[:-3])).GetDate()].append(float(data[3].strip()))
-# 	LVstatetimes[TDatime(int(data[1].strip()[:-3])).GetDate()].append(int(data[1].strip()[:-3]))
-
 #Read LV status from WBM CAEN readings		
 fLV_WBM= open('PLC_LVandTemp/WBM_DCS_CAEN_LV.txt', 'rU')
 LVlines_WBM = fLV_WBM.readlines()
@@ -230,60 +198,6 @@ for i in range(len(dates)):
 		print 'NO STATE INFORMATION AVAILABLE',date
 		print "STATES:", statetimes[date]
 		print "LVs   :", LVstatetimes[date]
-#sys.exit() 
-# gr1 = TGraph(len(PLCtime),array('d',PLCtime),array('d',PLCtemp))
-# gr1.SetMarkerColor(kBlue)
-# gr1.SetLineColor(kBlue)
-# gr1.SetMarkerStyle(1)
-# gr2 = TGraph(len(LVtime),array('d',LVtime),array('d',LVtemp))
-# gr2.SetMarkerColor(kRed)
-# gr2.SetLineColor(kRed)
-# gr2.SetMarkerStyle(1)
-# gr3 = TGraph(len(STtime),array('d',STtime),array('d',STtemp))
-# gr3.SetMarkerColor(kGreen)
-# gr3.SetLineColor(kGreen)
-# gr3.SetMarkerStyle(1)
-# 
-# mgn = TMultiGraph()
-# mgn.SetTitle("Graph")
-# mgn.Add(gr1,"p")
-# mgn.Add(gr2,"p")
-# mgn.Add(gr3,"p")
-# 
-# XaxisnameI = "Date"
-# YaxisnameI = "Current (mA)"
-# XaxisnameT = "Date"
-# YaxisnameT = "Temperature (C)"
-# 
-# canv = TCanvas("Canvas","Canvas",800,400)
-# gStyle.SetFillColor(kWhite)
-# 
-# canv.SetGrid()
-# mgn.Draw("AP")
-# mgn.GetXaxis().SetTimeDisplay(1)
-# mgn.GetXaxis().SetNdivisions(-503)
-# mgn.GetXaxis().SetTimeFormat("%Y-%m-%d")
-# mgn.GetXaxis().SetTimeOffset(0,"gmt")
-# mgn.GetXaxis().SetTitle(XaxisnameI)
-# mgn.GetYaxis().SetTitle(YaxisnameI)
-# mgn.GetXaxis().SetLimits(min(PLCtime[:]),max(PLCtime[:len(PLCtime)/2]))
-# #mgn.GetXaxis().SetLimits(min(PLCtime[len(PLCtime)/2:]),max(PLCtime[len(PLCtime)/2:]))
-# mgn.GetHistogram().SetMinimum(-50)
-# mgn.GetHistogram().SetMaximum(30)
-# mgn.GetYaxis().SetTitleOffset(1.5)
-# x1=.7
-# y1=.7
-# x2=x1+.2
-# y2=y1+.175
-# leg = TLegend(x1,y1,x2,y2)
-# leg.AddEntry(gr1,"data 1","pl")
-# leg.AddEntry(gr2,"data 2","pl")
-# leg.AddEntry(gr3,"data 3","pl")
-# leg.SetTextFont(10)
-# leg.Draw()
-# 
-# canv.SaveAs("TEC_minus_1.2.4.2.3_PLC_TSil.png")
-
 
 print "GETTING TRACKER STATES"
 for i in range((end-start)/86400+1): #(start,end,86400)
@@ -394,6 +308,4 @@ with open('LumiPerDay_'+partition+'.txt','w') as fout:
 		fout.write(strToWrite)
 print "        ",sdDays,"days were shut-down out of",totDays,"days"
 print "        ",timesChangedToSD,"times state changed to S-D"
-
-
 
