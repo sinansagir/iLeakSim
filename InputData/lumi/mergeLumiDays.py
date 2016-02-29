@@ -13,37 +13,12 @@ start=TDatime(startYear,startMonth,startDay,1,0,0).Convert()
 endTDatime=TDatime(endYear,endMonth,endDay,1,0,0)
 end=TDatime(endYear,endMonth,endDay,1,0,0).Convert()
 
-# dates = []
-# for year in range(2010, 2036):
-#     if year < 2001 or year > 2099:
-#         print "FIX LEAP YEAR"
-#         exit()
-# 
-#     for month in range(1, 13):
-#         for day in range(1, 32):
-#             if day == 31 and not [None, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1][month]:
-#                 continue
-#             if month == 2:
-#                 if 30 <= day:
-#                     continue
-#                 if (year % 4) and day == 29:
-#                     continue
-#             date=str(year)+str("%02d"%month)+str("%02d"%day)
-#             if int(date)<20100330 or int(date)>20351214: continue
-#             dates.append(date)
-#             print year, "%02d"%month, "%02d"%day
-
 with open('Lumi.txt','w') as fout:
-	for i in range((end-start)/86400+1): #(start,end,86400)
+	for i in range((end-start)/86400+1):
 		timeglob=start+i*86400
 		timeglobTDatime=TDatime(timeglob)
 		date=str(timeglobTDatime.GetDate())
 		time=str(timeglobTDatime.GetTime())
-		#print dir(timeglobTDatime)
-		#print date,time
-		#continue
-		#if date!=dates[i]: print "NO MATCH"
-		#continue
 		year=date[:4]
 		month=date[4:6]
 		day=date[6:8]
@@ -68,7 +43,6 @@ with open('Lumi.txt','w') as fout:
 			if 'fb' in lines[lumiLineInd].split('|')[lumiColInd]: lumiCoeff = 1.e6
 			lumiOfDay = float(lines[lumiLineInd+2].split('|')[lumiColInd])*lumiCoeff # in /nb
 		strToWrite = day+'/'+month+'/'+year+'\t'+str(timeglob)+'\t'+str(lumiOfDay)+'\n'
-		#print strToWrite, lumiCoeff
 		fout.write(strToWrite)
 
 lumiInFile = "Lumi.txt"
@@ -84,9 +58,4 @@ for i in range(len(linesLumi)):
 print "Total Integrated Lumi:",IntLum
 print "Total Integrated Lumi Run1:",IntLumR1
 print "Total Integrated Lumi Run2:",IntLum-IntLumR1
-
-
-
-
-
 
