@@ -8,12 +8,22 @@ whichLumi = 'Delivered' # "Delivered" or "Recorded"
 startYear,startMonth,startDay = 2010,3,30
 endYear,endMonth,endDay = 2015,12,14
 
+#Read in the old Lumi file
+os.system('mv Lumi.txt Lumi_old.txt')
+oldLumiInFile = "Lumi_old.txt"
+infileOldLumi = open(oldLumiInFile, 'r')
+linesOldLumi = infileOldLumi.readlines()
+infileOldLumi.close()
+oldEndDate = linesOldLumi[-1].strip().split()[0].split('/')
+startYear,startMonth,startDay = int(oldEndDate[2]),int(oldEndDate[1]),int(oldEndDate[0])
+
 startTDatime=TDatime(startYear,startMonth,startDay,1,0,0)
-start=TDatime(startYear,startMonth,startDay,1,0,0).Convert()
+start=TDatime(startYear,startMonth,startDay,1,0,0).Convert()+86400
 endTDatime=TDatime(endYear,endMonth,endDay,1,0,0)
 end=TDatime(endYear,endMonth,endDay,1,0,0).Convert()
 
 with open('Lumi.txt','w') as fout:
+	for line in linesOldLumi: fout.write(line)
 	for i in range((end-start)/86400+1):
 		timeglob=start+i*86400
 		timeglobTDatime=TDatime(timeglob)
@@ -55,7 +65,7 @@ for i in range(len(linesLumi)):
 	data = linesLumi[i].strip().split()
 	IntLum+=float(data[2])/1.e6
 	if data[0]=='03/06/2015':IntLumR1=IntLum
-print "Total Integrated Lumi:",IntLum
-print "Total Integrated Lumi Run1:",IntLumR1
-print "Total Integrated Lumi Run2:",IntLum-IntLumR1
+print "Total Integrated Lumi:",round(IntLum,2),"fb^-1"
+print "Total Integrated Lumi Run1:",round(IntLumR1,2),"fb^-1"
+print "Total Integrated Lumi Run2:",round(IntLum-IntLumR1,2),"fb^-1"
 
