@@ -5,6 +5,7 @@ import ROOT as R
 from array import array
 from leakCalcV1 import *
 
+R.gROOT.SetBatch(1)
 R.gROOT.SetStyle("Plain")
 
 if len(sys.argv)>1: iteration=int(sys.argv[1])
