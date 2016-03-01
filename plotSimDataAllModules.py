@@ -12,13 +12,13 @@ gROOT.SetBatch(1)
 
 #******************************Input to edit******************************************************
 measDataPath = "MeasData/AllModules"
-simDate = "2016_2_20_11_15_20"
+simDate = "2016_3_1"
 Dates=["02-04-2012","30-01-2013","11-12-2015"]
 IleakMax=[400.,2000.,200.]
 TempMax=[50.,50.,20.]
 
 plotBadModules=False
-readTree=False # This needs to be true if running the code on the tree for the first time. It will dump what's read from tree into pickle files and these can be loaded if this option set to "False"
+readTree=True # This needs to be true if running the code on the tree for the first time. It will dump what's read from tree into pickle files and these can be loaded if this option set to "False"
 scaleCurrentToMeasTemp = True # Scale current to measured temperature (Check how this is done!!!! The default method assumes that the simulated current is at 20C)
 
 #READ IN TREE

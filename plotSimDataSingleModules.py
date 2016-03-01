@@ -12,7 +12,7 @@ gROOT.SetBatch(1)
 
 #******************************Input to edit******************************************************
 measDataPath = "MeasData/SingleModules"
-simDate = "2016_2_20_11_15_20"
+simDate = "2016_3_1"
 readTree=False # This needs to be true if running the code on the tree for the first time. It will dump what's read from tree into pickle files and these can be loaded if this option is set to "False"
 isCurrentScaled = False # Scale current to measured temperature (Check how this is done!!!! The default method assumes that the simulated current is at 20C)
 QuerrMods=[369120378,402672418,436228134,470046629]
