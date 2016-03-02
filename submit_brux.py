@@ -9,8 +9,8 @@ date='%i_%i_%i'%(cTime.year,cTime.month,cTime.day)
 time='%i_%i_%i'%(cTime.hour,cTime.minute,cTime.second)
 pfix=''
 
-os.mkdir('condor_'+date+pfix)
 outDir=runDir+'/'+'condor_'+pfix+date#+'_'+time
+os.mkdir(outDir)
 
 NtotModules = 13196 #Nentries in dPdT.root
 NmodulePerJob = 30
@@ -23,7 +23,7 @@ for it in range(0,NtotModules/NmodulePerJob+1):
 	jdf=open(jdfName,'w')
 	jdf.write(
 """universe = vanilla
-Executable = %(RUNDIR)s/makeDarkCurrentSim.sh
+Executable = %(RUNDIR)s/submit_brux.sh
 Should_Transfer_Files = YES
 WhenToTransferOutput = ON_EXIT
 Output = entry_%(ENTRY)s.out

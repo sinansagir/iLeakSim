@@ -12,7 +12,7 @@ gROOT.SetBatch(1)
 
 #******************************Input to edit******************************************************
 measDataPath = "MeasData/AllModules"
-simDate = "2016_3_1"
+simDate = "2016_3_2"
 Dates=["02-04-2012","30-01-2013","11-12-2015"]
 IleakMax=[400.,2000.,200.]
 TempMax=[50.,50.,20.]
@@ -225,7 +225,7 @@ for q in range(len(Dates)):
 			ht_TEC[QDate].Fill((temp_t_on[module][QuerrDay]-273.16-temp_dd[tempMatchInd])/temp_dd[tempMatchInd])
 			t4+=1
 		pullIleak=(ileakc_t_on[module][QuerrDay]*1000*currentScaleMeasTemp-ileak_dd[iLeakMatchInd])/ileak_dd[iLeakMatchInd]
-		if pullIleak < -0.1:
+		if abs(pullIleak) > 0.4:
 			isimbadmods.append(ileakc_t_on[module][QuerrDay]*1000*currentScaleMeasTemp)
 			idatbadmods.append(ileak_dd[iLeakMatchInd])
 			badModFileI.write('Mod Number: '+str(module)+'\t'+'IleakSim = '+str(ileakc_t_on[module][QuerrDay]*1000*currentScaleMeasTemp)+'\t'+'IleakData = '+str(ileak_dd[iLeakMatchInd])+'\t'+'TempSim = '+str(temp_t_on[module][QuerrDay]-273.16)+'\t'+'TempData = '+str(temp_dd[tempMatchInd])+'\n')
@@ -233,7 +233,7 @@ for q in range(len(Dates)):
 		modDataFileIForTKmap.write('Mod Number: '+str(module)+'\t'+'IleakSim = '+str(ileakc_t_on[module][QuerrDay]*1000*currentScaleMeasTemp)+'\t'+'IleakData = '+str(ileak_dd[iLeakMatchInd])+'\n')
 		pullTemp=(temp_t_on[module][QuerrDay]-273.16-temp_dd[tempMatchInd])/temp_dd[tempMatchInd]
 		#if abs(pullTemp) > 0.4 and abs(temp_t_on[module][QuerrDay]-273.16-temp_dd[tempMatchInd])>2:
-		if abs(pullIleak) > 0.6:
+		if abs(pullTemp) > 0.6:
 			tsimbadmods.append(temp_t_on[module][QuerrDay]-273.16)
 			tdatbadmods.append(temp_dd[tempMatchInd])
 			badModFileT.write('Mod Number: '+str(module)+'\t'+'TempSim = '+str(temp_t_on[module][QuerrDay]-273.16)+'\t'+'TempData = '+str(temp_dd[tempMatchInd])+'\n')

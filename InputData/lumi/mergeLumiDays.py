@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 import os,sys,fnmatch
-from ROOT import *
+import ROOT as R
 
 lumiDir = 'lumi/'
 whichLumi = 'Delivered' # "Delivered" or "Recorded"
@@ -9,7 +9,7 @@ startYear,startMonth,startDay = 2010,3,30
 endYear,endMonth,endDay = 2015,12,14
 
 #Read in the old Lumi file
-os.system('mv Lumi.txt Lumi_old.txt')
+if not os.path.exits(os.getcwd()+'/Lumi_old.txt'): os.system('mv Lumi.txt Lumi_old.txt')
 oldLumiInFile = "Lumi_old.txt"
 infileOldLumi = open(oldLumiInFile, 'r')
 linesOldLumi = infileOldLumi.readlines()
@@ -17,16 +17,16 @@ infileOldLumi.close()
 oldEndDate = linesOldLumi[-1].strip().split()[0].split('/')
 startYear,startMonth,startDay = int(oldEndDate[2]),int(oldEndDate[1]),int(oldEndDate[0])
 
-startTDatime=TDatime(startYear,startMonth,startDay,1,0,0)
-start=TDatime(startYear,startMonth,startDay,1,0,0).Convert()+86400
-endTDatime=TDatime(endYear,endMonth,endDay,1,0,0)
-end=TDatime(endYear,endMonth,endDay,1,0,0).Convert()
+startTDatime=R.TDatime(startYear,startMonth,startDay,1,0,0)
+start=R.TDatime(startYear,startMonth,startDay,1,0,0).Convert()+86400
+endTDatime=R.TDatime(endYear,endMonth,endDay,1,0,0)
+end=R.TDatime(endYear,endMonth,endDay,1,0,0).Convert()
 
 with open('Lumi.txt','w') as fout:
 	for line in linesOldLumi: fout.write(line)
 	for i in range((end-start)/86400+1):
 		timeglob=start+i*86400
-		timeglobTDatime=TDatime(timeglob)
+		timeglobTDatime=R.TDatime(timeglob)
 		date=str(timeglobTDatime.GetDate())
 		time=str(timeglobTDatime.GetTime())
 		year=date[:4]

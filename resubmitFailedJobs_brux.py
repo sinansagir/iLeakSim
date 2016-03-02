@@ -5,7 +5,7 @@ import math
 
 ################# [<condor dir name>, <start job id>, <end job id>] ###########
 condordirlist = [['condor_2016_2_20_11_15_20', 0, 439]]
-condorDir = os.getcwd()
+condorDir = os.getcwd()+'/'
 
 njobs = 0
 for condor in condordirlist:
