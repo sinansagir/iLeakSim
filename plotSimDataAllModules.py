@@ -11,14 +11,15 @@ gROOT.SetBatch(1)
 ##################################################################################################################
 
 #******************************Input to edit******************************************************
-measDataPath = "MeasData/AllModules"
+measDataPath = "../iLeakSim_Feb16_leakCalcV1/MeasData/AllModules"
 simDate = "2016_3_2"
 Dates=["02-04-2012","30-01-2013","11-12-2015"]
 IleakMax=[400.,2000.,200.]
 TempMax=[50.,50.,20.]
 
 plotBadModules=False
-readTree=True # This needs to be true if running the code on the tree for the first time. It will dump what's read from tree into pickle files and these can be loaded if this option set to "False"
+removeBadModules=False # This will remove the modules with too high and too low temperature and leakage current. It doesn't remove all of the outliers!
+readTree=False # This needs to be true if running the code on the tree for the first time. It will dump what's read from tree into pickle files and these can be loaded if this option set to "False"
 scaleCurrentToMeasTemp = True # Scale current to measured temperature (Check how this is done!!!! The default method assumes that the simulated current is at 20C)
 
 #READ IN TREE
@@ -176,12 +177,14 @@ for q in range(len(Dates)):
 	nMods=0
 	for module in detid_dd_I:
 		if module not in detid_dd_T or module not in detid_t: continue
-		if ileakc_t_on[module][QuerrDay]*1000<0 or ileakc_t_on[module][QuerrDay]>1000: continue
-		if temp_t_on[module][QuerrDay]<263.16 or temp_t_on[module][QuerrDay]>323.16: continue
+		if removeBadModules:
+			if ileakc_t_on[module][QuerrDay]*1000<0 or ileakc_t_on[module][QuerrDay]>1000: continue
+			if temp_t_on[module][QuerrDay]<263.16 or temp_t_on[module][QuerrDay]>323.16: continue
 		iLeakMatchInd = detid_dd_I.index(module)
 		tempMatchInd  = detid_dd_T.index(module)
-		if ileak_dd[iLeakMatchInd]>2000 or ileak_dd[iLeakMatchInd]<0: continue
-		if temp_dd[tempMatchInd]<-20. or temp_dd[tempMatchInd]>50.: continue
+		if removeBadModules:
+			if ileak_dd[iLeakMatchInd]>2000 or ileak_dd[iLeakMatchInd]<0: continue
+			if temp_dd[tempMatchInd]<-20. or temp_dd[tempMatchInd]>50.: continue
 		if scaleCurrentToMeasTemp: currentScaleMeasTemp = LeakCorrection(temp_dd[tempMatchInd]+273.16,293.16)
 		if not scaleCurrentToMeasTemp: currentScaleMeasTemp = LeakCorrection(temp_t_on[module][QuerrDay],293.16)
 		if partition_t[module]==1 or partition_t[module]==2: # TIB
