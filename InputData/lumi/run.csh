@@ -1,7 +1,7 @@
 #!/bin/csh
 
-set datestart_=`date -d 2015-12-15 +%s`
-set datefinish_=`date -d 2016-2-29 +%s`
+set datestart_=`date -d 2016-9-10 +%s`
+set datefinish_=`date -d 2016-11-6 +%s`
 set step_=86400
 set period_=`echo ${datestart_} ${datefinish_} ${step_} | awk '{printf "%.0f",($2-$1)/$3}'`
 set counter_=0

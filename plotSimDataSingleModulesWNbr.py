@@ -12,7 +12,7 @@ gROOT.SetBatch(1)
 
 #******************************Input to edit******************************************************
 tkMapFile = "InputData/TrackMap.root"
-measDataPath = "MeasData/SingleModules"
+measDataPath = "../iLeakSim_Feb16_leakCalcV1/MeasData/SingleModules"
 simDate = "2016_3_2"
 readTree=False # This needs to be true if running the code on the tree for the first time. It will dump what's read from tree into pickle files and these can be loaded if this option is set to "False"
 isCurrentScaled = False # Scale current to measured temperature (Check how this is done!!!! The default method assumes that the simulated current is at 20C)
@@ -93,19 +93,22 @@ def LeakCorrection(Tref,T):
 
 TFileTKMap = TFile(tkMapFile,'READ')
 TTreeTKMap = TFileTKMap.Get("treemap")
-moduleX  = {}
-moduleY  = {}
-moduleZ  = {}
+moduleX = {}
+moduleY = {}
+moduleZ = {}
+moduleL = {}
 for mod in TTreeTKMap :
 	moduleX[mod.DETID] = mod.X
 	moduleY[mod.DETID] = mod.Y
 	moduleZ[mod.DETID] = mod.Z
+	moduleL[mod.DETID] = mod.StructPos
 TFileTKMap.Close()
 def getNeighborMod(module):
 	moduleNeighbor=-1
 	minDR=1.e9 
 	for mod in moduleX.keys():
 		if mod==module: continue
+		#if moduleL[mod]!=moduleL[module]: continue # require them to be in the same layer
 		DR = (moduleX[mod]-moduleX[module])**2+(moduleY[mod]-moduleY[module])**2+(moduleZ[mod]-moduleZ[module])**2
 		if DR <= minDR:
 			minDR = DR

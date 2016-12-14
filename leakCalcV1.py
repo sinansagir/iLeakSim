@@ -32,22 +32,11 @@ def LeakCorrection(Tref,T):
 	return (Tref/T)*(Tref/T)*pmath.exp(-E/(2.*k_B)*(1./Tref-1./T))
 
 #*******************************Definition of MAIN Simulation Function**************************************************
-def LeakCalculation(periode,Tallf,Tempf,T_tsdf,Feqf,Ileakf,volumef,dtdpf,paramf):
+def LeakCalculation(periode,Tallf,temperature,Feqf,Ileakf,volumef,dtdpf,paramf):
 	maxTime=4*periode # 4* since there are 4 tracker states for each day	
-	Ton,Toff,Tst,Tsd=Tempf[0],Tempf[1],Tempf[2],Tempf[3]
-	temperature = []
 	darkCurrent = []
 	fluence     = []
 	for i in range(maxTime):
-		if i%4==0:
-			if i/4>=1391: T=Ton-19. # Tracker started to be cooled down to -15C (from 4C in Run 1) on 08/01/15 (?) according to Sasha tools. Number of days from the simulation start date -> 08/01/15-19/03/11=1391 days
-			else: T=Ton
-		if i%4==1: T=T_tsdf[(i-1)/4]#T=Toff
-		if i%4==2:
-			if i/4>=1391: T=Tst-19. # Tracker started to be cooled down to -15C (from 4C in Run 1) on 08/01/15 (?) according to Sasha tools. Number of days from the simulation start date -> 08/01/15-19/03/11=1391 days
-			else: T=Tst
-		if i%4==3: T=T_tsdf[(i-3)/4]
-		temperature.append(T)
 		darkCurrent.append(Ileakf)
 		fluence.append(Feqf[i])
 	
@@ -101,7 +90,7 @@ def LeakCalculation(periode,Tallf,Tempf,T_tsdf,Feqf,Ileakf,volumef,dtdpf,paramf)
 	IleakSim['iLeakSD'].append(darkCurrent[-1])
 	IleakSim['fluence'].append(max(fluence[-4],fluence[-3],fluence[-2],fluence[-1]))
 			
-	#for i in range(periode): #scale leakage current back to original temperature
+	#for i in range(periode): #scale leakage current back to original temperature --> this can also be done during comparison to measurements
 	#	IleakSim['iLeakON'][i]*=LeakCorrection(IleakSim['tempON'][i],293.16)
 	#	IleakSim['iLeakOF'][i]*=LeakCorrection(IleakSim['tempOF'][i],293.16)
 	#	IleakSim['iLeakSB'][i]*=LeakCorrection(IleakSim['tempSB'][i],293.16)

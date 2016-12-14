@@ -2,7 +2,7 @@
 
 import os,datetime
 
-runDir=os.environ['CMSSW_BASE']+'/src/iLeakSim'
+runDir=os.environ['CMSSW_BASE']+'/src/radMonitoring/iLeakSim'
 
 cTime=datetime.datetime.now()
 date='%i_%i_%i'%(cTime.year,cTime.month,cTime.day)

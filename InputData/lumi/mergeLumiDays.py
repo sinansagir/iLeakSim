@@ -6,10 +6,10 @@ import ROOT as R
 lumiDir = 'lumi/'
 whichLumi = 'Delivered' # "Delivered" or "Recorded"
 startYear,startMonth,startDay = 2010,3,30
-endYear,endMonth,endDay = 2015,12,14
+endYear,endMonth,endDay = 2016,11,6
 
 #Read in the old Lumi file
-if not os.path.exits(os.getcwd()+'/Lumi_old.txt'): os.system('mv Lumi.txt Lumi_old.txt')
+if not os.path.exists(os.getcwd()+'/Lumi_old.txt'): os.system('mv Lumi.txt Lumi_old.txt')
 oldLumiInFile = "Lumi_old.txt"
 infileOldLumi = open(oldLumiInFile, 'r')
 linesOldLumi = infileOldLumi.readlines()

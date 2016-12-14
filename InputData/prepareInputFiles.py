@@ -8,7 +8,7 @@ partition = 'TIB' # run for each partition; TIB, TOB, TECp, TECn
 
 #Simulation start and end dates:
 startYear,startMonth,startDay = 2011,1,4#2010,3,30
-endYear,endMonth,endDay = 2015,12,14
+endYear,endMonth,endDay = 2016,11,6
 
 startTDatime=TDatime(startYear,startMonth,startDay,1,0,0)
 start=TDatime(startYear,startMonth,startDay,1,0,0).Convert()
@@ -119,12 +119,15 @@ for line in LVlines_WBM:
 	LVstatetimes[TDatime(int(data[2].strip())).GetDate()].append(int(data[2].strip()))
 
 #Tracker states (ON, OFF, and STAND-BY) from hours counter in WBM
-fstates = open('TrackerStates/'+partition+'_all2011-2015.txt', 'rU')
+fstates = open('TrackerStates/'+partition+'_all2011-2016.txt', 'rU')
 statelines = fstates.readlines()
 fstates.close()
 print "GETTING TRACKER STATES ..."
 for line in statelines:
 	data = line.strip().split('*')
+	if len(data)<4: 
+		print "Unknown data format:",data
+		continue
 	states[TDatime(int(data[2].strip())).GetDate()].append(data[3].strip())
 	statetimes[TDatime(int(data[2].strip())).GetDate()].append(int(data[2].strip()))
 
