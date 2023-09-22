@@ -14,7 +14,7 @@ gROOT.SetBatch(1)
 
 #******************************Input to edit******************************************************
 measDataPath = "MeasDataLocal/data_DCU_raw"
-simDate = "2023_9_12"
+simDate = "2023_9_4"
 readTree=True # This needs to be true if running the code on the tree for the first time. It will dump what's read from tree into pickle files and these can be loaded if this option is set to "False"
 isCurrentScaled = False # Scale current to measured temperature (Check how this is done!!!! The default method assumes that the simulated current is at 20C)
 plotRawData = False

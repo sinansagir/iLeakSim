@@ -42,7 +42,7 @@ R = 0.07*W_ref
 
 #******************************Input to edit******************************************************
 measDataPath = "MeasDataLocal/data_DCU_raw"
-simDate = "2023_9_12"
+simDate = "2023_9_4"
 readTree=False # This needs to be true if running the code on the tree for the first time. It will dump what's read from tree into pickle files and these can be loaded if this option is set to "False"
 readDCU=False
 doFit=False
