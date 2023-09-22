@@ -22,7 +22,7 @@ TempinTOB  = inputDir+"InputDataLocal/LumiPerDay_TOB.txt"
 TempinTIB  = inputDir+"InputDataLocal/LumiPerDay_TIB.txt"
 TempinTECm = inputDir+"InputDataLocal/LumiPerDay_TECminus.txt"
 TempinTECp = inputDir+"InputDataLocal/LumiPerDay_TECplus.txt"
-InitTemp   = inputDir+"InputDataLocal/TempTree0.root"
+InitTemp   = inputDir+"InputDataLocal/TempTree.root"
 TempChange = inputDir+"InputDataLocal/dPdT.root"
 InitLeak   = inputDir+"InputDataLocal/IleakTree0.root"
 
@@ -65,10 +65,22 @@ TFileFluence14.Close()
 TFileIniTemp = R.TFile(InitTemp,'READ')
 TTreeIniTemp = TFileIniTemp.Get("treetemp")
 iniTempdetid = []
-iniTemp      = []
+temp_190311  = []
+temp_030615  = []
+temp_230517  = []
+temp_170418  = []
+temp_270522  = []
+temp_220423  = []
+temp_300623  = []
 for module in TTreeIniTemp:
 	iniTempdetid.append(module.DETID)
-	iniTemp.append(module.Temp)
+	temp_190311.append(module.Temp_190311)
+	temp_030615.append(module.Temp_030615)
+	temp_230517.append(module.Temp_230517)
+	temp_170418.append(module.Temp_170418)
+	temp_270522.append(module.Temp_270522)
+	temp_220423.append(module.Temp_220423)
+	temp_300623.append(module.Temp_300623)
 tempentries = TTreeIniTemp.GetEntries()
 TFileIniTemp.Close()
 
@@ -269,7 +281,7 @@ for imod in range(iteration*Nmodules,(iteration+1)*Nmodules): #This for loop run
 	if not modInTemptree:
 		print "Module",dpdtdetid[imod],"does not exist in initial temperature snapshot tree! Continuing to next module ..."
 		continue
-	if iniTemp[temptreeind]>50. or iniTemp[temptreeind]<-20.: #skip outliers
+	if temp_190311[temptreeind]>50. or temp_190311[temptreeind]<-20.: #skip outliers
 		print "Module",dpdtdetid[imod],"initial temperature reading is corrupted! No point at simulating. Continuing to next module ..."
 		continue
 		
@@ -293,7 +305,7 @@ for imod in range(iteration*Nmodules,(iteration+1)*Nmodules): #This for loop run
 		print "Module",dpdtdetid[imod],"does not have a known partition number! Continuing to next module ..."
 		continue
 		
-	Ton=iniTemp[temptreeind]+273.16 #module temperature in K when tracker is ON
+	Ton=temp_190311[temptreeind]+273.16 #module temperature in K when tracker is ON
 	Tst=Ton-3. #module temperature in K when tracker is STAND-BY
 	modIniIleak =iniLeak[ileaktreeind]/1000*LeakCorrection(293.16,Ton) # scale initial leak to 20C, and convert from mA to A
 
@@ -322,15 +334,21 @@ for imod in range(iteration*Nmodules,(iteration+1)*Nmodules): #This for loop run
 		FeqOld.append(lumiAll[i]*fluenceOld*xsec*FluenceSF)
 		FeqNew.append(lumiAll[i]*fluenceNew*xsec*FluenceSF) # two different fluence matchings to calculate 1MeV equivalent fluence per day with Luminosity
 		if i%4==0:
-			#if i/4>=3605: T=Ton-28. # AK: Tracker will start to be cooled down to -25C (from 4C in Run 1) on Jan 30, 2021 (?). Number of days from the simulation start date -> 01/30/21-03/19/11=3605 days
-			if i/4>=2509: T=Ton-24 # AK had -23.5 here for the difference seen between measured and simulated: Tracker started to be cooled down to -20C (from 4C in Run 1) on Jan 30, 2018 (?) according to Sasha tools. Number of days from the simulation start date -> 01/30/18-03/19/11=2509 days (2517 - Sinan, May 12, 2018)
-			elif i/4>=1391: T=Ton-19. # Tracker started to be cooled down to -15C (from 4C in Run 1) on 08/01/15 (?) according to Sasha tools. Number of days from the simulation start date -> 08/01/15-19/03/11=1391 days
+			if i/4>=4486:   T=temp_300623[temptreeind]+273.16 # In 2022 or beginning of 2023 (to be confirmed with Martin Lipinski) a few cooling lines had to be closed. Number of days from the simulation start date -> 30/06/23-19/03/11=4486 days. Using temperature DCU readings from the date: 30/06/23
+			elif i/4>=4417: T=temp_220423[temptreeind]+273.16 # In 2022 or beginning of 2023 (to be confirmed with Martin Lipinski) a few cooling lines had to be closed. Number of days from the simulation start date -> 22/04/23-19/03/11=4417 days. Using temperature DCU readings from the date: 22/04/23
+			elif i/4>=4087: T=temp_270522[temptreeind]+273.16 # In 2022 or beginning of 2023 (to be confirmed with Martin Lipinski) a few cooling lines had to be closed. Number of days from the simulation start date -> 27/05/22-19/03/11=4087 days. Using temperature DCU readings from the date: 27/05/22
+			elif i/4>=2509: T=temp_170418[temptreeind]+273.16 # Tracker cooling set temperature reduced to -20C (from 4C in Run 1) on Jan 30, 2018 (?) according to Sasha tools. Number of days from the simulation start date -> 01/30/18-03/19/11=2509 days. Using temperature DCU readings from the earliest possible date: 17/04/18
+			elif i/4>=2257: T=temp_230517[temptreeind]+273.16 # Installation of the Phase-1 pixel in 2017 which is running at much lower temperature and may also influence the innermost tracker modules. Number of days from the simulation start date -> 23/05/17-19/03/11=2257 days. Using temperature DCU readings from the date: 23/05/17
+			elif i/4>=1391: T=temp_030615[temptreeind]+273.16 # Tracker cooling set temperature reduced to -15C (from 4C in Run 1) on 08/01/15 (?) according to Sasha tools. Also during LS1, thermal insulation of bulkheads was heavily improved. Number of days from the simulation start date -> 08/01/15-19/03/11=1391 days. Using temperature DCU readings from the earliest possible date: 03/06/15
 			else: T=Ton
 		if i%4==1: T=Tsd[(i-1)/4]#T=Toff
 		if i%4==2:
-			#if i/4>=3605: T=Tst-28. # AK: Tracker will start to be cooled down to -25C (from 4C in Run 1) on Jan 30, 2021 (?). Number of days from the simulation start date -> 01/30/21-03/19/11=3605 days
-			if i/4>=2509: T=Tst-24 # AK had -23.5 here for the difference seen between measured and simulated: Tracker started to be cooled down to -20C (from 4C in Run 1) on Jan 30, 2018 (?) according to Sasha tools. Number of days from the simulation start date -> 01/30/18-03/19/11=2509 days (2517 - Sinan, May 12, 2018)
-			elif i/4>=1391: T=Tst-19. # Tracker started to be cooled down to -15C (from 4C in Run 1) on 08/01/15 (?) according to Sasha tools. Number of days from the simulation start date -> 08/01/15-19/03/11=1391 days
+			if i/4>=4486:   T=temp_300623[temptreeind]+273.16-3. # In 2022 or beginning of 2023 (to be confirmed with Martin Lipinski) a few cooling lines had to be closed. Number of days from the simulation start date -> 30/06/23-19/03/11=4486 days. Using temperature DCU readings from the date: 30/06/23
+			elif i/4>=4417: T=temp_220423[temptreeind]+273.16-3. # In 2022 or beginning of 2023 (to be confirmed with Martin Lipinski) a few cooling lines had to be closed. Number of days from the simulation start date -> 22/04/23-19/03/11=4417 days. Using temperature DCU readings from the date: 22/04/23
+			elif i/4>=4087: T=temp_270522[temptreeind]+273.16-3. # In 2022 or beginning of 2023 (to be confirmed with Martin Lipinski) a few cooling lines had to be closed. Number of days from the simulation start date -> 27/05/22-19/03/11=4087 days. Using temperature DCU readings from the date: 27/05/22
+			elif i/4>=2509: T=temp_170418[temptreeind]+273.16-3. # Tracker cooling set temperature reduced to -20C (from 4C in Run 1) on Jan 30, 2018 (?) according to Sasha tools. Number of days from the simulation start date -> 01/30/18-03/19/11=2509 days. Using temperature DCU readings from the earliest possible date: 17/04/18
+			elif i/4>=2257: T=temp_230517[temptreeind]+273.16-3. # Installation of the Phase-1 pixel in 2017 which is running at much lower temperature and may also influence the innermost tracker modules. Number of days from the simulation start date -> 23/05/17-19/03/11=2257 days. Using temperature DCU readings from the date: 23/05/17
+			elif i/4>=1391: T=temp_030615[temptreeind]+273.16-3. # Tracker cooling set temperature reduced to -15C (from 4C in Run 1) on 08/01/15 (?) according to Sasha tools. Also during LS1, thermal insulation of bulkheads was heavily improved. Number of days from the simulation start date -> 08/01/15-19/03/11=1391 days. Using temperature DCU readings from the earliest possible date: 03/06/15  
 			else: T=Tst
 		if i%4==3: T=Tsd[(i-3)/4]
 		modThist.append(T)
@@ -356,7 +374,7 @@ for imod in range(iteration*Nmodules,(iteration+1)*Nmodules): #This for loop run
 		dtimes_t[day]   = tdtime[day]
 	detid_t[0]    = dpdtdetid[imod]
 	ileaki_t[0]   = iniLeak[ileaktreeind]
-	tempi_t[0]    = iniTemp[temptreeind]
+	tempi_t[0]    = temp_190311[temptreeind]
 	volume_t[0]   = fluence7Volume[flutreeind7]
 	partition_t[0]= fluence7Partition[flutreeind7]
 	treeout.Fill()

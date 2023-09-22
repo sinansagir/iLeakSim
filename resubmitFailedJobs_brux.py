@@ -4,7 +4,7 @@ import os, sys, fnmatch
 import math
 
 ################# [<condor dir name>, <start job id>, <end job id>] ###########
-condordirlist = [['condor_2016_11_6', 0, 439]]
+condordirlist = [['condor_2023_9_12', 0, 439]]
 condorDir = os.getcwd()+'/'
 
 njobs = 0

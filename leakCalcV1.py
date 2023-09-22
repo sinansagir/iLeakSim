@@ -24,6 +24,8 @@ def f_alpha1(T,k0,E,t):
 # Annealing part: beta
 def f_beta(t,b):
 	if b==0: b = 3.07e-18 # A/cm
+	try: -b*pmath.log(t*1440.)
+	except: print b,t
 	return -b*pmath.log(t*1440.) # log(t/t0), where t0 is taken to be 1min and t is in days
 
 # Leakage current scaling to a reference temperature "Tref" from measurement temperature "T"
@@ -46,6 +48,7 @@ def LeakCalculation(periode,Tallf,temperature,Feqf,Ileakf,volumef,dtdpf,paramf):
 	IleakSim['iLeakOF']=[]
 	IleakSim['iLeakSB']=[]
 	IleakSim['iLeakSD']=[]
+	IleakSim['tempAL']=[]
 	IleakSim['tempON']=[]
 	IleakSim['tempOF']=[]
 	IleakSim['tempSB']=[]
@@ -54,6 +57,10 @@ def LeakCalculation(periode,Tallf,temperature,Feqf,Ileakf,volumef,dtdpf,paramf):
 	RestDaySum=maxTime/4
 	for j in range(1,maxTime): #simulate leakage current per day
 		if j%4==0: # j=4,8,12,...
+			tempall = temperature[j-4]
+			for ind_ in range(1,4):
+				if Tallf[j-ind_]>Tallf[j-4]: tempall = temperature[j-ind_]
+			IleakSim['tempAL'].append(tempall)           # append values corresponding to dominant tracker state of the day
 			IleakSim['tempON'].append(temperature[j-4])  # append values corresponding to tracker ON state of the day
 			IleakSim['tempOF'].append(temperature[j-3])  # append values corresponding to tracker OFF state of the day
 			IleakSim['tempSB'].append(temperature[j-2])  # append values corresponding to tracker STAND-BY state of the day
@@ -64,7 +71,7 @@ def LeakCalculation(periode,Tallf,temperature,Feqf,Ileakf,volumef,dtdpf,paramf):
 			IleakSim['iLeakSD'].append(darkCurrent[j-1]) # append values corresponding to tracker SHUT-DOWN state of the day
 			IleakSim['fluence'].append(max(fluence[j-4],fluence[j-3],fluence[j-2],fluence[j-1])) # Fluence of the day
 			OneDaySum=0 # resets values for each Day
-			if int(RestDaySum-Tallf[j-5])%100==0:
+			if int(RestDaySum-Tallf[j-5])%500==0:
 				print "Remaining days to simulate =",int(RestDaySum-Tallf[j-5])
 		if Tallf[j-1]==0: continue # continue if a specific tracker state didn't take place during the day
 		OneDaySum+=Tallf[j-1] # OneDaySum needs to be initialized everyday
@@ -80,6 +87,10 @@ def LeakCalculation(periode,Tallf,temperature,Feqf,Ileakf,volumef,dtdpf,paramf):
 			temperature[k]+=(alpha0+alpha1+beta)*fluence[j-1]*volumef*300.*dtdpf*LeakCorrection(temperature[k-1],293.16) # temperature correction
 			RestDaySum+=Tallf[k]
 	#append also the last day:
+	tempall = temperature[-4]
+	for ind_ in range(1,4):
+		if Tallf[-ind_]>Tallf[-4]: tempall = temperature[-ind_]
+	IleakSim['tempAL'].append(tempall) 
 	IleakSim['tempON'].append(temperature[-4])
 	IleakSim['tempOF'].append(temperature[-3])
 	IleakSim['tempSB'].append(temperature[-2])

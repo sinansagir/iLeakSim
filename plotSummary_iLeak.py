@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-import os,sys,fnmatch,math,pickle
+import os,sys,fnmatch,pickle
 from bisect import bisect_left
 from array import array
 import numpy as np
@@ -27,19 +27,6 @@ W_ref = 900;
 W = W_ref
 H = H_ref
 
-# 
-# Simple example of macro: plot with CMS name and lumi text
-#  (this script does not pretend to work in all configurations)
-# iPeriod = 1*(0/1 7 TeV) + 2*(0/1 8 TeV)  + 4*(0/1 13 TeV) 
-# For instance: 
-#               iPeriod = 3 means: 7 TeV + 8 TeV
-#               iPeriod = 7 means: 7 TeV + 8 TeV + 13 TeV 
-#               iPeriod = 0 means: free form (uses lumi_sqrtS)
-# Initiated by: Gautier Hamel de Monchenault (Saclay)
-# Translated in Python by: Joshua Hardenbrook (Princeton)
-# Updated by:   Dinko Ferencek (Rutgers)
-#
-
 iPeriod = 0
 
 # references for T, B, L, R
@@ -54,7 +41,8 @@ R = 0.07*W_ref
 ##################################################################################################################
 
 #******************************Input to edit******************************************************
-simDate = "2016_12_6"
+measDataPath = "MeasDataLocal/data_DCU_raw"
+simDate = "2023_9_12"
 readTree=False # This needs to be true if running the code on the tree for the first time. It will dump what's read from tree into pickle files and these can be loaded if this option is set to "False"
 readDCU=False
 doFit=False
@@ -173,6 +161,7 @@ lumiAll=[]
 lumiPerDay=[]
 IntLum=0.
 IntLumR1=0.
+IntLumR2=0.
 dtime_t_2 = [TDatime(int(item)).GetDate() for item in dtime_t]
 dtime_t = [int(item) for item in dtime_t]
 for i in range(len(linesLumi)):
@@ -182,11 +171,13 @@ for i in range(len(linesLumi)):
 		if int(data[0].split('/')[2]+data[0].split('/')[1]+data[0].split('/')[0]) in dtime_t_2:
 			lumiAll.append(IntLum)
 			lumiPerDay.append(float(data[2]))
-			if data[0]=='01/01/2013':IntLumR1=IntLum
+			if data[0]=='03/06/2015':IntLumR1=IntLum
+			if data[0]=='03/06/2019':IntLumR2=IntLum-IntLumR1
 	except: print "Warning! => Unknown data format: ",data,"in",lumiFile
 print "Total Integrated Lumi:",lumiAll[-1]
 print "Total Integrated Lumi Run1:",IntLumR1
-print "Total Integrated Lumi Run2:",lumiAll[-1]-IntLumR1
+print "Total Integrated Lumi Run2:",IntLumR2
+print "Total Integrated Lumi Run3:",lumiAll[-1]-IntLumR1-IntLumR2
 
 def findfiles(path, filtre):
     for root, dirs, files in os.walk(path):
@@ -203,7 +194,7 @@ def findClosest(theList, theNum): #Assumes theList is sorted and returns the clo
        return theInd-1
 
 dcufiles = []
-for file in findfiles('MeasDataLocal/DCUrawFull/Ileak_perDay', '*.txt'):
+for file in findfiles(measDataPath+'/iLeak_perDay', '*.txt'):
 	dcufiles.append(file)
 
 if readDCU:
@@ -219,24 +210,24 @@ if readDCU:
 		for line in linesdcu:
 			data = line.strip().split()
 			lnxTime = int(data[0])
-			index = findClosest(dtime_t_2,TDatime(lnxTime).GetDate())
-			dcuileak[mod][index]=float(data[1])
+			ind_ = findClosest(dtime_t_2,TDatime(lnxTime).GetDate())
+			dcuileak[mod][ind_]=float(data[1])
 	ind = 0
 	print "Reading DCU temperature data ..."
 	for file in dcufiles:
 		if ind%500==0: print "Finished",ind,"out of",len(dcufiles)
 		ind+=1
-		dcudata = open(file.replace('Ileak_','TSil_'), 'r')
+		dcudata = open(file.replace('iLeak','TSil'), 'r')
 		linesdcu = dcudata.readlines()
 		dcudata.close()
 		mod=int(file.split('/')[-1][:-4])
 		for line in linesdcu:
 			data = line.strip().split()
 			lnxTime = int(data[0])
-			index = findClosest(dtime_t_2,TDatime(lnxTime).GetDate())
+			ind_ = findClosest(dtime_t_2,TDatime(lnxTime).GetDate())
 			measTemp = float(data[1])
-			if measTemp<-25: continue
-			dcutemp[mod][index]=measTemp
+			if measTemp<-35: continue
+			dcutemp[mod][ind_]=measTemp
 	print "Damping DCU data into pickle ..."
 	pickle.dump(dcuileak,open("DarkSimAllModules_"+simDate+'/dcuileak.p','wb'))
 	pickle.dump(dcutemp,open("DarkSimAllModules_"+simDate+'/dcutemp.p','wb'))
@@ -248,11 +239,14 @@ else:
 k_B = 8.617343183775136189e-05
 def LeakCorrection(Tref,T):
 	E = 1.21 # formerly 1.12 eV
-	return (Tref/T)*(Tref/T)*math.exp(-(E/(2.*k_B))*(1./Tref-1./T))
+	try: return (Tref/T)*(Tref/T)*np.exp(-(E/(2.*k_B))*(1./Tref-1./T))
+	except:
+		print Tref,T
+		return 0
 
 print "========>>>>>>>> SCALING CURRENT TO 0C and AVERAGING"
 for mod in ileakc_t_on.keys():
-	ileakc_t_on[mod]=[item*mcSF*LeakCorrection(273.16,293.16)*1.e3/volume[mod] for item in ileakc_t_on[mod]] #muA/cm^3 @0C
+	ileakc_t_on[mod]=[item*LeakCorrection(273.16,293.16)*1.e3/volume[mod] for item in ileakc_t_on[mod]] #muA/cm^3 @0C
 	#ileakc_t_on[mod]=[ileakc_t_on[mod][ind]*mcSF*LeakCorrection(temp_t_on[mod][ind],293.16)*LeakCorrection(273.16,dcutemp[mod][ind]+273.16)*1.e3/volume[mod] for ind in range(len(ileakc_t_on[mod]))] #muA/cm^3 @0C
 	#dcuileak[mod]=[dcuileak[mod][ind]*LeakCorrection(273.16,temp_t_on[mod][ind])/volume[mod] for ind in range(len(dcuileak[mod]))] #muA/cm^3 @0C
 	dcuileak[mod]=[dcuileak[mod][ind]*LeakCorrection(273.16,dcutemp[mod][ind]+273.16)/volume[mod] for ind in range(len(dcuileak[mod]))] #muA/cm^3 @0C
@@ -290,45 +284,34 @@ datFits = {}
 simFits = {}
 IgrsAll = {}
 def getTGraph(modPart,layer,color):
-	Ion=[0]*len(dtime_t)
-	nModsInLayer=0
-	for mod in part.keys():
-		if modPart not in part[mod]: continue
-		if pos[mod]!=layer: continue
-		if mod not in ileakc_t_on.keys(): continue
-		for day in range(len(dtime_t)):
-			Ion[day]+=ileakc_t_on[mod][day]
-		nModsInLayer+=1
-	Ion = [item/nModsInLayer for item in Ion]
-	IonData=[]
-	IonRatio=[]
-	iperData=[]
-	lumiAllData=[]
-	for t in range(len(dtime_t_2)):
-		leakTemppp = 0
-		nMods = 0
-		for mod in part.keys():
-			if modPart not in part[mod]: continue
-			if pos[mod]!=layer: continue
-			if dcuileak[mod][t]>0 and abs(dcuileak[mod][t] - ileakc_t_on[mod][t])/dcuileak[mod][t]<0.6 and abs(dcutemp[mod][t]+273.16 - temp_t_on[mod][t])/(dcutemp[mod][t]+273.16)<0.6:
-				leakTemppp+=dcuileak[mod][t]
-				nMods+=1
-		if nMods!=0 and abs(leakTemppp - nMods*Ion[t])/leakTemppp<1.: 
-			IonData.append(leakTemppp/nMods)
-			iperData.append(dtime_t[t])
-			lumiAllData.append(lumiAll[t])
-			IonRatio.append(leakTemppp/(nMods*Ion[t]))
-	iper=dtime_t
+	IonS=[0]*len(dtime_t)
+	IonD=[0]*len(dtime_t)
+	IonDoS=[0]*len(dtime_t)
+	partMods = [mod for mod in part.keys() if modPart in part[mod] and pos[mod]==layer and mod in ileakc_t_on.keys()]
+	for day in range(len(dtime_t)):
+		nModsInLayerS=0
+		nModsInLayerD=0
+		for mod in partMods:
+			IonS[day]+=ileakc_t_on[mod][day]
+			nModsInLayerS+=1
+			if dcuileak[mod][day]>0 and abs(dcuileak[mod][day] - ileakc_t_on[mod][day])/dcuileak[mod][day]<0.6 and abs(dcutemp[mod][day]+273.16 - temp_t_on[mod][day])/(dcutemp[mod][day]+273.16)<0.6:
+				IonD[day]+=dcuileak[mod][day]
+				nModsInLayerD+=1
+		IonS[day]/=nModsInLayerS
+		if nModsInLayerD>0: 
+			if abs(IonD[day] - IonS[day])/IonD[day]>1.: IonD[day]=0
+			else: IonD[day]/=nModsInLayerD
+		IonDoS[day]=IonD[day]/IonS[day]
 
 	lyrKey = modPart+'_L'+str(layer)
-	IgrsAll[lyrKey+'_sim'] = TGraph(len(iper),array('d',iper),array('d',Ion))
+	IgrsAll[lyrKey+'_sim'] = TGraph(len(dtime_t),array('d',dtime_t),array('d',IonS))
 	IgrsAll[lyrKey+'_sim'].SetMarkerColor(color)
 	IgrsAll[lyrKey+'_sim'].SetLineColor(color)
 	IgrsAll[lyrKey+'_sim'].SetLineStyle(1)
 	IgrsAll[lyrKey+'_sim'].SetLineWidth(3)
 	IgrsAll[lyrKey+'_sim'].SetMarkerStyle(7)
 	IgrsAll[lyrKey+'_sim'].SetMarkerSize(0.3)
-	IgrsAll[lyrKey+'_vs_lumi_sim'] = TGraph(len(iper),array('d',lumiAll),array('d',Ion))
+	IgrsAll[lyrKey+'_vs_lumi_sim'] = TGraph(len(dtime_t),array('d',lumiAll),array('d',IonS))
 	IgrsAll[lyrKey+'_vs_lumi_sim'].SetMarkerColor(color)
 	IgrsAll[lyrKey+'_vs_lumi_sim'].SetLineColor(color)
 	IgrsAll[lyrKey+'_vs_lumi_sim'].SetLineStyle(1)
@@ -336,28 +319,28 @@ def getTGraph(modPart,layer,color):
 	IgrsAll[lyrKey+'_vs_lumi_sim'].SetMarkerStyle(7)
 	IgrsAll[lyrKey+'_vs_lumi_sim'].SetMarkerSize(0.6)
 	
-	IgrsAll[lyrKey+'_dat'] = TGraph(len(iperData),array('d',iperData),array('d',IonData))
+	IgrsAll[lyrKey+'_dat'] = TGraph(len(dtime_t),array('d',dtime_t),array('d',IonD))
 	IgrsAll[lyrKey+'_dat'].SetMarkerColor(color)
 	IgrsAll[lyrKey+'_dat'].SetLineColor(color)
 	IgrsAll[lyrKey+'_dat'].SetLineStyle(1)
 	IgrsAll[lyrKey+'_dat'].SetLineWidth(3)
 	IgrsAll[lyrKey+'_dat'].SetMarkerStyle(2)
 	IgrsAll[lyrKey+'_dat'].SetMarkerSize(0.9)
-	IgrsAll[lyrKey+'_vs_lumi_dat'] = TGraph(len(iperData),array('d',lumiAllData),array('d',IonData))
+	IgrsAll[lyrKey+'_vs_lumi_dat'] = TGraph(len(dtime_t),array('d',lumiAll),array('d',IonD))
 	IgrsAll[lyrKey+'_vs_lumi_dat'].SetMarkerColor(color)
 	IgrsAll[lyrKey+'_vs_lumi_dat'].SetLineColor(color)
 	IgrsAll[lyrKey+'_vs_lumi_dat'].SetLineStyle(1)
 	IgrsAll[lyrKey+'_vs_lumi_dat'].SetLineWidth(3)
 	IgrsAll[lyrKey+'_vs_lumi_dat'].SetMarkerStyle(2)
 	IgrsAll[lyrKey+'_vs_lumi_dat'].SetMarkerSize(0.9)
-	IgrsAll[lyrKey+'_ratio'] = TGraph(len(iperData),array('d',iperData),array('d',IonRatio))
+	IgrsAll[lyrKey+'_ratio'] = TGraph(len(dtime_t),array('d',dtime_t),array('d',IonDoS))
 	IgrsAll[lyrKey+'_ratio'].SetMarkerColor(color)
 	IgrsAll[lyrKey+'_ratio'].SetLineColor(color)
 	IgrsAll[lyrKey+'_ratio'].SetLineStyle(1)
 	IgrsAll[lyrKey+'_ratio'].SetLineWidth(3)
 	IgrsAll[lyrKey+'_ratio'].SetMarkerStyle(2)
 	IgrsAll[lyrKey+'_ratio'].SetMarkerSize(0.9)
-	IgrsAll[lyrKey+'_vs_lumi_ratio'] = TGraph(len(iperData),array('d',lumiAllData),array('d',IonRatio))
+	IgrsAll[lyrKey+'_vs_lumi_ratio'] = TGraph(len(dtime_t),array('d',lumiAll),array('d',IonDoS))
 	IgrsAll[lyrKey+'_vs_lumi_ratio'].SetMarkerColor(color)
 	IgrsAll[lyrKey+'_vs_lumi_ratio'].SetLineColor(color)
 	IgrsAll[lyrKey+'_vs_lumi_ratio'].SetLineStyle(1)
@@ -379,19 +362,10 @@ def getTGraph(modPart,layer,color):
 			except: simFits[modPart+str(layer)].append([-999,-999])
 		
 	return #IGr_sim,IGr_data,IGr_ratio,IGr_vs_lumi_sim,IGr_vs_lumi_data,IGr_vs_lumi_ratio
-
-colorList = [kBlack,kRed,kBlue,kGreen,kCyan,kMagenta,kYellow]
-nLayers = {'TIB':4,'TOB':6,'TID':3,'TEC':7}
-mgnIs = {}
-for subdet in ['TIB','TOB','TID','TEC']:
-	for lyr in range(1,nLayers[subdet]+1):
-		print "Doing "+subdet+"_L"+str(lyr)
-		getTGraph(subdet,lyr,colorList[lyr-1])
 		
-outDir = 'DarkSimAllModules_'+simDate+'/plotSummary_DCUrawFull/'
+outDir = 'DarkSimAllModules_'+simDate+'/plotSummary_'+measDataPath.split('/')[-1]
 if not os.path.exists(runDir+'/'+outDir): os.system('mkdir '+outDir)
-outRfile = TFile(outDir+"/summaries"+postFix+".root",'RECREATE')
-for gr in IgrsAll.keys(): IgrsAll[gr].Write()
+outRfile = TFile(outDir+"/summaries_iLeak"+postFix+".root",'RECREATE')
 
 dmmy_gr_sim = TGraph(len([1294120800,1294207200]),array('d',[1294120800,1294207200]),array('d',[-99,-100])) #dummy TGraph to add extra legends (there might be better ways!)
 dmmy_gr_sim.SetMarkerColor(kBlack)
@@ -415,30 +389,55 @@ canvs = {}
 canvs['dummy'] = TCanvas('dummy','dummy',50,50,W,H)
 
 yDiv=0.35
-uPad=TPad("uPad","",0,yDiv,1,1) #for actual plots
-uPad.SetLeftMargin( L/W )
-uPad.SetRightMargin( R/W )
-uPad.SetTopMargin( T/H )
-uPad.SetBottomMargin( 0 )	
-uPad.SetFillColor(0)
-uPad.SetBorderMode(0)
-uPad.SetFrameFillStyle(0)
-uPad.SetFrameBorderMode(0)
-# uPad.SetTickx(0)
-# uPad.SetTicky(0)
+uPadt=TPad("uPadt","",0,yDiv,1,1) #for actual plots
+uPadt.SetLeftMargin( L/W )
+uPadt.SetRightMargin( R/W )
+uPadt.SetTopMargin( T/H )
+uPadt.SetBottomMargin( 0 )	
+uPadt.SetFillColor(0)
+uPadt.SetBorderMode(0)
+uPadt.SetFrameFillStyle(0)
+uPadt.SetFrameBorderMode(0)
+# uPadt.SetTickx(0)
+# uPadt.SetTicky(0)
 
-lPad=TPad("lPad","",0,0,1,yDiv) #for sigma runner
-lPad.SetLeftMargin( L/W )
-lPad.SetRightMargin( R/W )
-lPad.SetTopMargin( 0 )
-lPad.SetBottomMargin( B/H )
-lPad.SetFillColor(0)
-lPad.SetBorderMode(0)
-lPad.SetFrameFillStyle(0)
-lPad.SetFrameBorderMode(0)
-# lPad.SetTickx(0)
-# lPad.SetTicky(0)
-lPad.SetGridy()
+lPadt=TPad("lPadt","",0,0,1,yDiv) #for sigma runner
+lPadt.SetLeftMargin( L/W )
+lPadt.SetRightMargin( R/W )
+lPadt.SetTopMargin( 0 )
+lPadt.SetBottomMargin( B/H )
+lPadt.SetFillColor(0)
+lPadt.SetBorderMode(0)
+lPadt.SetFrameFillStyle(0)
+lPadt.SetFrameBorderMode(0)
+# lPadt.SetTickx(0)
+# lPadt.SetTicky(0)
+lPadt.SetGridy()
+
+uPadl=TPad("uPadl","",0,yDiv,1,1) #for actual plots
+uPadl.SetLeftMargin( L/W )
+uPadl.SetRightMargin( R/W-0.03 )
+uPadl.SetTopMargin( T/H )
+uPadl.SetBottomMargin( 0 )	
+uPadl.SetFillColor(0)
+uPadl.SetBorderMode(0)
+uPadl.SetFrameFillStyle(0)
+uPadl.SetFrameBorderMode(0)
+# uPadl.SetTickx(0)
+# uPadl.SetTicky(0)
+
+lPadl=TPad("lPadl","",0,0,1,yDiv) #for sigma runner
+lPadl.SetLeftMargin( L/W )
+lPadl.SetRightMargin( R/W-0.03 )
+lPadl.SetTopMargin( 0 )
+lPadl.SetBottomMargin( B/H )
+lPadl.SetFillColor(0)
+lPadl.SetBorderMode(0)
+lPadl.SetFrameFillStyle(0)
+lPadl.SetFrameBorderMode(0)
+# lPadl.SetTickx(0)
+# lPadl.SetTicky(0)
+lPadl.SetGridy()
 
 x1=.40
 y2=.87
@@ -456,13 +455,18 @@ leg_dmmy.SetTextFont(62)
 leg_dmmy.AddEntry(dmmy_gr_sim,"Simulated","l")
 leg_dmmy.AddEntry(dmmy_gr_dat,"Measured","p")
 
+colorList = [kBlack,kRed+1,kBlue+1,kGreen+2,kCyan+1,kMagenta+1,kYellow+2]
+nLayers = {'TIB':4,'TOB':6,'TID':3,'TEC':7}
 legs = {}
+mgnIs = {}
 for subdet in ['TIB','TOB','TID','TEC']:
 	mgnIs[subdet] = TMultiGraph()
 	mgnIs[subdet].SetTitle("")
 	mgnIs[subdet+'ratio'] = TMultiGraph()
 	mgnIs[subdet+'ratio'].SetTitle("")
 	for lyr in range(1,nLayers[subdet]+1):
+		print "Doing "+subdet+"_L"+str(lyr)
+		getTGraph(subdet,lyr,colorList[lyr-1])
 		mgnIs[subdet].Add(IgrsAll[subdet+'_L'+str(lyr)+'_sim'],"l")
 		mgnIs[subdet].Add(IgrsAll[subdet+'_L'+str(lyr)+'_dat'],"p")
 		mgnIs[subdet+'ratio'].Add(IgrsAll[subdet+'_L'+str(lyr)+'_ratio'],"p")
@@ -485,10 +489,10 @@ for subdet in ['TIB','TOB','TID','TEC']:
 	canvs[subdet].SetFrameBorderMode(0)
 	canvs[subdet].SetTickx(0)
 	canvs[subdet].SetTicky(0)
-	uPad.Draw()
-	lPad.Draw()
+	uPadt.Draw()
+	lPadt.Draw()
 	
-	uPad.cd()
+	uPadt.cd()
 	mgnIs[subdet].Draw("AP")
 	formatUpperHist(mgnIs[subdet])
 	mgnIs[subdet].GetXaxis().SetTimeDisplay(1)
@@ -515,8 +519,8 @@ for subdet in ['TIB','TOB','TID','TEC']:
 	legs[subdet].Draw()
 	leg_dmmy.Draw()
 
-	lPad.cd()
-	# lPad.SetGrid()
+	lPadt.cd()
+	# lPadt.SetGrid()
 	mgnIs[subdet+'ratio'].Draw("AP")
 	formatLowerHist(mgnIs[subdet+'ratio'])
 	mgnIs[subdet+'ratio'].GetXaxis().SetTimeDisplay(1)
@@ -532,44 +536,18 @@ for subdet in ['TIB','TOB','TID','TEC']:
 	mgnIs[subdet+'ratio'].GetHistogram().SetMaximum(1.5)
 
 	#draw the lumi text on the canvas
-	CMS_lumi.CMS_lumi(uPad, iPeriod, iPos)
+	CMS_lumi.CMS_lumi(uPadt, iPeriod, iPos)
 
-	uPad.Update()
-	uPad.RedrawAxis()
-	frame = uPad.GetFrame()
-	uPad.Draw()
+	uPadt.Update()
+	uPadt.RedrawAxis()
+	frame = uPadt.GetFrame()
+	uPadt.Draw()
 
 	canvs[subdet].Write()
 	saveNameI = outDir+"/"+subdet+"_Ileak_avgOverLayer"+postFix
 	canvs[subdet].SaveAs(saveNameI+".png")
 	canvs[subdet].SaveAs(saveNameI+".pdf")
-
-uPad=TPad("uPad","",0,yDiv,1,1) #for actual plots
-uPad.SetLeftMargin( L/W )
-uPad.SetRightMargin( R/W-0.03 )
-uPad.SetTopMargin( T/H )
-uPad.SetBottomMargin( 0 )	
-uPad.SetFillColor(0)
-uPad.SetBorderMode(0)
-uPad.SetFrameFillStyle(0)
-uPad.SetFrameBorderMode(0)
-# uPad.SetTickx(0)
-# uPad.SetTicky(0)
-
-lPad=TPad("lPad","",0,0,1,yDiv) #for sigma runner
-lPad.SetLeftMargin( L/W )
-lPad.SetRightMargin( R/W-0.03 )
-lPad.SetTopMargin( 0 )
-lPad.SetBottomMargin( B/H )
-lPad.SetFillColor(0)
-lPad.SetBorderMode(0)
-lPad.SetFrameFillStyle(0)
-lPad.SetFrameBorderMode(0)
-# lPad.SetTickx(0)
-# lPad.SetTicky(0)
-lPad.SetGridy()
 	
-for subdet in ['TIB','TOB','TID','TEC']:
 	mgnIs[subdet+'vslumi'] = TMultiGraph()
 	mgnIs[subdet+'vslumi'].SetTitle("")
 	mgnIs[subdet+'vslumiratio'] = TMultiGraph()
@@ -597,17 +575,17 @@ for subdet in ['TIB','TOB','TID','TEC']:
 	canvs[subdet+'vslumi'].SetFrameBorderMode(0)
 	canvs[subdet+'vslumi'].SetTickx(0)
 	canvs[subdet+'vslumi'].SetTicky(0)
-	uPad.Draw()
-	lPad.Draw()
+	uPadl.Draw()
+	lPadl.Draw()
 	
-	uPad.cd()
+	uPadl.cd()
 	mgnIs[subdet+'vslumi'].Draw("AP")
 	formatUpperHist(mgnIs[subdet+'vslumi'])
 	mgnIs[subdet+'vslumi'].GetXaxis().SetTitle("Integrated Luminosity [fb^{-1}]")
 	mgnIs[subdet+'vslumi'].GetYaxis().SetTitle(YaxisnameI)
-	mgnIs[subdet+'vslumi'].GetXaxis().SetLimits(0,80)
+	mgnIs[subdet+'vslumi'].GetXaxis().SetLimits(0,255)
 	mgnIs[subdet+'vslumi'].GetHistogram().SetMinimum(0.0001)#min(Ion))
-	if subdet=='TOB': mgnIs[subdet+'vslumi'].GetHistogram().SetMaximum(44)
+	#if subdet=='TOB': mgnIs[subdet+'vslumi'].GetHistogram().SetMaximum(44)
 
 	legs[subdet+'vslumi'] = TLegend(x1,y1,x2,y2)	
 	legs[subdet+'vslumi'].SetShadowColor(0)
@@ -624,28 +602,29 @@ for subdet in ['TIB','TOB','TID','TEC']:
 	legs[subdet+'vslumi'].Draw()
 	leg_dmmy.Draw()
 
-	lPad.cd()
-	# lPad.SetGrid()
+	lPadl.cd()
+	# lPadl.SetGrid()
 	mgnIs[subdet+'vslumiratio'].Draw("AP")
 	formatLowerHist(mgnIs[subdet+'vslumiratio'])
 	mgnIs[subdet+'vslumiratio'].GetXaxis().SetTitle("Integrated Luminosity [fb^{-1}]")
 	mgnIs[subdet+'vslumiratio'].GetYaxis().SetTitle('Mea/Sim')
-	mgnIs[subdet+'vslumiratio'].GetXaxis().SetLimits(0,80)
+	mgnIs[subdet+'vslumiratio'].GetXaxis().SetLimits(0,255)
 	mgnIs[subdet+'vslumiratio'].GetHistogram().SetMinimum(0.5)#min(Ion))
 	mgnIs[subdet+'vslumiratio'].GetHistogram().SetMaximum(1.5)
 
 	#draw the lumi text on the canvas
-	CMS_lumi.CMS_lumi(uPad, iPeriod, iPos)
+	CMS_lumi.CMS_lumi(uPadl, iPeriod, iPos)
 
-	uPad.Update()
-	uPad.RedrawAxis()
-	frame = uPad.GetFrame()
-	uPad.Draw()
+	uPadl.Update()
+	uPadl.RedrawAxis()
+	frame = uPadl.GetFrame()
+	uPadl.Draw()
 
 	canvs[subdet+'vslumi'].Write()
 	saveNameI = outDir+"/"+subdet+"_Ileak_vs_lumi_avgOverLayer"+postFix
 	canvs[subdet+'vslumi'].SaveAs(saveNameI+".png")
 	canvs[subdet+'vslumi'].SaveAs(saveNameI+".pdf")
+for gr in IgrsAll.keys(): IgrsAll[gr].Write()
 outRfile.Close()
 # if doFit:
 # 	fits = {}

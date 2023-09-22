@@ -1,26 +1,28 @@
 #!/usr/bin/python
 
-import os,sys,pickle
+import os,sys,fnmatch,math,pickle
+from bisect import bisect_left
 import numpy as np
 from ROOT import *
 gROOT.SetBatch(1)
 
 ##################################################################################################################
 # The code looks for the input simulation tree in "DarkSimAllModules_<simDate>/DarkSimAllModules_<simDate>.root"
-# The output files will be in "DarkSimAllModules_<simDate>/plotAllModules/". 
+# The output files will be in "DarkSimAllModules_<simDate>/approvalPlots/". 
 ##################################################################################################################
 
 #******************************Input to edit******************************************************
-measDataPath = "MeasData/AllModules"
-simDate = "2016_3_2"
-Dates=["02-04-2012","30-01-2013","11-12-2015"]
-IleakMax=[400.,2000.,200.]
-TempMax=[50.,50.,20.]
-
-plotBadModules=False
-removeBadModules=False # This will remove the modules with too high and too low temperature and leakage current. It doesn't remove all of the outliers!
+measDataPath = "MeasDataLocal/data_DCU_raw"
+simDate = "2023_9_4"
 readTree=False # This needs to be true if running the code on the tree for the first time. It will dump what's read from tree into pickle files and these can be loaded if this option set to "False"
+readDCU=False
 scaleCurrentToMeasTemp = True # Scale current to measured temperature (Check how this is done!!!! The default method assumes that the simulated current is at 20C)
+datesToPlot = ['2012_8_30','2016_10_11','2018_10_18']
+datesToPlot+= ['2022_10_20','2023_4_25','2023_5_12','2023_7_16','2023_9_1']
+datesToPlot+= ['2023_6_6','2023_6_8','2023_6_13','2023_6_28','2023_6_30']
+datesToPlot+= ['2023_7_9','2023_7_11','2023_7_12','2023_7_14','2023_7_15']
+datesToPlot+= ['2023_9_1','2023_9_2','2023_9_3','2023_9_4']
+datesToPlot = ['2023_6_6','2023_9_1']
 
 #READ IN TREE
 InTreeSim="DarkSimAllModules_"+simDate+"/DarkSimAllModules_"+simDate+".root"
@@ -30,8 +32,8 @@ simTree = simFile.Get('tree')
 print "/////////////////////////////////////////////////////////////////"
 print "Number of Simulated Modules in the tree: ", simTree.GetEntries()
 print "/////////////////////////////////////////////////////////////////"
-simTree.GetEntry(0)
-print type(simTree.DETID_T), type(simTree.ileakc_t_on), type(simTree.dtime_t)
+# simTree.GetEntry(0)
+# print type(simTree.DETID_T), type(simTree.ileakc_t_on), type(simTree.dtime_t)
 if readTree: 
 	print "************************* READING TREE **************************"
 	detid_t     = []
@@ -55,415 +57,368 @@ if readTree:
 		if nMod%1000==0: print "Finished reading ", nMod, "/", simTree.GetEntries(), " modules!"
 	print "********************* FINISHED READING TREE *********************"
 	print "- Dumping detector ids into pickle ..."
-	pickle.dump(detid_t,open("DarkSimAllModules_"+simDate+'/detid_t.p','wb'))
+	pickle.dump(detid_t,open('DarkSimAllModules_'+simDate+'/detid_t.p','wb'))
 	print "- Dumping partitions into pickle ..."
-	pickle.dump(partition_t,open("DarkSimAllModules_"+simDate+'/partition_t.p','wb'))
+	pickle.dump(partition_t,open('DarkSimAllModules_'+simDate+'/partition_t.p','wb'))
 	print "- Dumping time into pickle ..."
-	pickle.dump(dtime_t,open("DarkSimAllModules_"+simDate+'/dtime_t.p','wb'))
+	pickle.dump(dtime_t,open('DarkSimAllModules_'+simDate+'/dtime_t.p','wb'))
 	print "- Dumping temperature into pickle ..."
-	pickle.dump(temp_t_on,open("DarkSimAllModules_"+simDate+'/temp_t_on.p','wb'))
+	pickle.dump(temp_t_on,open('DarkSimAllModules_'+simDate+'/temp_t_on.p','wb'))
 	print "- Dumping leakage current into pickle ..."
-	pickle.dump(ileakc_t_on,open("DarkSimAllModules_"+simDate+'/ileakc_t_on.p','wb'))
+	pickle.dump(ileakc_t_on,open('DarkSimAllModules_'+simDate+'/ileakc_t_on.p','wb'))
 	print "*********************** FINISHED DUMPING ***********************"
 else:
 	print "******************* LOADING TREE FROM PICKLE ********************"
 	print "-Loading detector ids ..."
-	detid_t=pickle.load(open("DarkSimAllModules_"+simDate+'/detid_t.p','rb'))
+	detid_t=pickle.load(open('DarkSimAllModules_'+simDate+'/detid_t.p','rb'))
 	print "-Loading partitions ..."
-	partition_t=pickle.load(open("DarkSimAllModules_"+simDate+'/partition_t.p','rb'))
+	partition_t=pickle.load(open('DarkSimAllModules_'+simDate+'/partition_t.p','rb'))
 	print "-Loading time ..."
-	dtime_t=pickle.load(open("DarkSimAllModules_"+simDate+'/dtime_t.p','rb'))
+	dtime_t=pickle.load(open('DarkSimAllModules_'+simDate+'/dtime_t.p','rb'))
 	print "-Loading temperature ..."
-	temp_t_on=pickle.load(open("DarkSimAllModules_"+simDate+'/temp_t_on.p','rb'))
+	temp_t_on=pickle.load(open('DarkSimAllModules_'+simDate+'/temp_t_on.p','rb'))
 	print "-Loading leakage current ..."
-	ileakc_t_on=pickle.load(open("DarkSimAllModules_"+simDate+'/ileakc_t_on.p','rb'))
+	ileakc_t_on=pickle.load(open('DarkSimAllModules_'+simDate+'/ileakc_t_on.p','rb'))
 	print "******************* LOADED TREE FROM PICKLE ********************"
+dtime_t_2 = [TDatime(int(item)).GetDate() for item in dtime_t]
+
+print "========>>>>>>>> READING TRACKER MAP"
+TrackMap="InputDataLocal/TrackMap.root"
+TrackMapRFile = TFile(TrackMap,'READ')
+TrackMapTTree = TrackMapRFile.Get('treemap')
+part,pos,volume,dcuileak,dcutemp = {},{},{},{},{}
+for event in TrackMapTTree:
+	part[event.DETID] = event.Partition
+	pos[event.DETID] = event.StructPos
+	volume[event.DETID] = event.D*(event.W1+event.W2)*(event.L/2)*1e6 #cm^3
+	dcuileak[event.DETID] = [-1]*len(dtime_t)
+	dcutemp[event.DETID] = [-99]*len(dtime_t)
+TrackMapRFile.Close()
+print "========>>>>>>>> FINISHED READING TRACKER MAP"
 
 runDir=os.getcwd()
 
 k_B = 8.617343183775136189e-05
 def LeakCorrection(Tref,T):
 	E = 1.21 # formerly 1.12 eV
-	return (Tref/T)*(Tref/T)*exp(-E/(2.*k_B)*(1./Tref-1./T))
+	return (Tref/T)*(Tref/T)*math.exp(-E/(2.*k_B)*(1./Tref-1./T))
+	
+def findfiles(path, filtre):
+    for root, dirs, files in os.walk(path):
+        for f in fnmatch.filter(files, filtre):
+            yield os.path.join(root, f)
 
-hi_all,hi_TIB,hi_TID,hi_TOB,hi_TEC,ht_all,ht_TIB,ht_TID,ht_TOB,ht_TEC={},{},{},{},{},{},{},{},{},{}
-hi_badmodules,ht_badmodules={},{}
-outlierModules_I,outlierModules_T={},{}
-for q in range(len(Dates)):
-	QDate  = Dates[q]
-	#if QDate!='11-12-2015': continue
-	qday   = int(QDate[:2])
-	qmonth = int(QDate[3:5])
-	qyear  = int(QDate[6:])
-	querday = TDatime(qyear,qmonth,qday,0,0,1).Convert()
-		
-	if not os.path.exists(runDir+'/DarkSimAllModules_'+simDate+'/plotAllModules/'): os.system('mkdir DarkSimAllModules_'+simDate+'/plotAllModules/')
-	saveNameI = "DarkSimAllModules_"+simDate+"/plotAllModules/Ileak_"+QDate
-	saveNameT = "DarkSimAllModules_"+simDate+"/plotAllModules/Temp_"+QDate
-	outRfile = TFile("DarkSimAllModules_"+simDate+"/plotAllModules/outRfile"+QDate+".root",'RECREATE')
-	
-	#READ IN DATA
-	InFileDatA_I=measDataPath+"/Ileak/Ileak_"+QDate+".txt"
-	InFileDatA_T=measDataPath+"/Temp/Temp_"+QDate+".txt"
-	fIdata = open(InFileDatA_I, 'r')
-	linesI = fIdata.readlines()
-	fIdata.close()
-	fTdata = open(InFileDatA_T, 'r')
-	linesT = fTdata.readlines()
-	fTdata.close()
-	
-	detid_dd_I=[]
-	ileak_dd=[]
-	for line in linesI:
-		data = line.strip().split()
-		try: 
-			detid_dd_I.append(int(data[0]))
-			ileak_dd.append(float(data[1]))
-		except: print "Warning! => Unknown data format: ",data,"in", InFileDatA_I
-	detid_dd_T=[]
-	temp_dd=[]
-	for line in linesT:
-		data = line.strip().split() 
-		try:
-			detid_dd_T.append(int(data[0]))
-			temp_dd.append(float(data[1]))
-		except: print "Warning! => Unknown data format: ",data,"in", InFileDatA_T
+def findClosest(theList, theNum): #Assumes theList is sorted and returns the closest value to theNum
+    theInd = bisect_left(theList, theNum)
+    if theInd == len(theList):
+        return theInd-1
+    if theList[theInd] - theNum < theNum - theList[theInd - 1]:
+       return theInd
+    else:
+       return theInd-1
+
+if readDCU:
+	dcufiles = []
+	for file in findfiles(measDataPath+'/iLeak_perDay', '*.txt'):
+		dcufiles.append(file)
+	ind = 0
+	print "Reading DCU data ..."
+	for file in dcufiles:
+		if ind%500==0: print "Finished",ind,"out of",len(dcufiles)
+		ind+=1
+		dcudata = open(file, 'r')
+		linesdcu = dcudata.readlines()
+		dcudata.close()
+		dcutdata = open(file.replace("iLeak","TSil"), 'r')
+		linesdcut = dcutdata.readlines()
+		dcutdata.close()
+		mod=int(file.split('/')[-1][:-4])
+		for line in linesdcu:
+			data = line.strip().split()
+			lnxTime = int(data[0])
+			ind_ = findClosest(dtime_t_2,TDatime(lnxTime).GetDate())
+			modIleak = float(data[1])
+			dcuileak[mod][ind_]=modIleak
+		for line in linesdcut:
+			data = line.strip().split()
+			lnxTime = int(data[0])
+			ind_ = findClosest(dtime_t_2,TDatime(lnxTime).GetDate())
+			modTemp = float(data[1])
+			dcutemp[mod][ind_]=modTemp
+	print "Damping DCU data into pickle ..."
+	pickle.dump(dcuileak,open('DarkSimAllModules_'+simDate+'/dcuileak.p','wb'))
+	pickle.dump(dcutemp,open('DarkSimAllModules_'+simDate+'/dcutemp.p','wb'))
+else:
+	print "Loading DCU data from pickle ..."
+	dcuileak=pickle.load(open('DarkSimAllModules_'+simDate+'/dcuileak.p','rb'))
+	dcutemp=pickle.load(open('DarkSimAllModules_'+simDate+'/dcutemp.p','rb'))
+
+outDir = 'DarkSimAllModules_'+simDate+'/allModules_'+measDataPath.split('/')[-1]
+if not os.path.exists(runDir+'/'+outDir): os.system('mkdir '+runDir+'/'+outDir)
+outRfile = TFile(outDir+"/outRfileAllModules.root",'RECREATE')
+
+hi = {'TIB':{},'TID':{},'TOB':{},'TEC':{}}
+ht = {'TIB':{},'TID':{},'TOB':{},'TEC':{}}
+colors = {'TIB':kOrange,'TID':kGreen+1,'TOB':kBlue,'TEC':kBlack}
+XaxisnameI = "Simulated current (#muA)"
+YaxisnameI = "Measured current (#muA)"
+XaxisnameT = "Simulated temperature (C)"
+YaxisnameT = "Measured temperature (C)"
+x1=.7 #for legs
+y1=0.15
+x2=x1+.15
+y2=y1+.225
+
+for QuerrDay in range(0,len(dtime_t)):#range(2081,len(dtime_t)):
+	querday= dtime_t[QuerrDay]
+	qday   = TDatime(querday).GetDay() 
+	qmonth = TDatime(querday).GetMonth() 
+	qyear  = TDatime(querday).GetYear()
+	QDate  = str(qyear)+'_'+str(qmonth)+'_'+str(qday)
+	print "Day: %i/%i (%s)" % (QuerrDay,len(dtime_t),QDate)
+	if QDate not in datesToPlot: continue
+	print "        Plotting this date...."
 	
 	#*****************Data Extraction*******************************
-	hi_all[QDate] = TH1D('hi_all_'+QDate, '', 100,-1,1)
-	hi_TOB[QDate] = TH1D('hi_TOB_'+QDate, '', 100,-1,1)
-	hi_TIB[QDate] = TH1D('hi_TIB_'+QDate, '', 100,-1,1)
-	hi_TID[QDate] = TH1D('hi_TID_'+QDate, '', 100,-1,1)
-	hi_TEC[QDate] = TH1D('hi_TEC_'+QDate, '', 100,-1,1)
-	ht_all[QDate] = TH1D('ht_all_'+QDate, '', 100,-1,1)
-	ht_TOB[QDate] = TH1D('ht_TOB_'+QDate, '', 100,-1,1)
-	ht_TIB[QDate] = TH1D('ht_TIB_'+QDate, '', 100,-1,1)
-	ht_TID[QDate] = TH1D('ht_TID_'+QDate, '', 100,-1,1)
-	ht_TEC[QDate] = TH1D('ht_TEC_'+QDate, '', 100,-1,1)
-	hi_badmodules[QDate] = TH1D('hi_badmodules'+QDate, '', 100,-1,1)
-	ht_badmodules[QDate] = TH1D('ht_badmodules'+QDate, '', 100,-1,1)
-	outlierModules_I[QDate] = []
-	outlierModules_T[QDate] = []
+	for key in hi.keys():
+		hi[key],ht[key]={},{}
+		hi[key][QDate] = TH1D('hi_'+key+'_'+QDate, '', 100,-1,1)
+		ht[key][QDate] = TH1D('ht_'+key+'_'+QDate, '', 100,-0.02,0.02)
 	
-	for w in range(len(dtime_t)):
-		if dtime_t[w]<=querday and dtime_t[w+1]>querday:
-			QuerrDay=w
-			Datum = TDatime(dtime_t[QuerrDay+1])
-			print "////////////////////////////////////////////////////////////////////////"
-			print "************************************************************************"
-			print "Data/Simulation on ",Datum.GetDate()," , ",QuerrDay, "days since simulation started"
-			print "************************************************************************"
-			print "////////////////////////////////////////////////////////////////////////"
-			break
+	detid_ileak = {}
+	ileak_sim = {}
+	ileak_dat = {}
+	ileak_count = {}
+	detid_temp = {}
+	temp_sim = {}
+	temp_dat = {}
+	temp_count = {}
+	for key in hi.keys():
+		detid_ileak[key] = []
+		ileak_sim[key] = []
+		ileak_dat[key] = []
+		ileak_count[key] = 0
+		detid_temp[key] = []
+		temp_sim[key] = []
+		temp_dat[key] = []
+		temp_count[key] = 0
 			
-	try: print QuerrDay
-	except: 
-		print QDate, "not found in the tree"
-		continue
+	tempMin = 300
+	tempMax = -300
+	ileakMin = 1e20
+	ileakMax = -1e6
+	for mod in dcuileak.keys():
+		mpart = part[mod][:3]
+		if mod not in ileakc_t_on.keys(): continue
+		if not dcuileak[mod][QuerrDay]>0: continue
+		#print ileakc_t_on[mod][QuerrDay],dcuileak[mod][QuerrDay],temp_t_on[mod][QuerrDay],dcutemp[mod][QuerrDay]
+		if dcutemp[mod][QuerrDay]<=-25: continue
+		#leakage current:
+		if scaleCurrentToMeasTemp: currentScaleMeasTemp = LeakCorrection(dcutemp[mod][QuerrDay]+273.16,293.16)
+		else: currentScaleMeasTemp = LeakCorrection(temp_t_on[mod][QuerrDay],293.16)
+		simLeak = ileakc_t_on[mod][QuerrDay]*1e3*currentScaleMeasTemp
+		meaLeak = dcuileak[mod][QuerrDay]#*1e3
+		#temperature:
+		simTemp = temp_t_on[mod][QuerrDay]
+		meaTemp = dcutemp[mod][QuerrDay]+273.16
+		#deviations:
+		leak_dev = (simLeak-meaLeak)/meaLeak
+		temp_dev = (simTemp-meaTemp)/meaTemp
+		if temp_dev<-0.025:
+			print mpart,mod,simTemp,meaTemp,temp_dev
+		#print simTemp,meaTemp,temp_dev
+		#clean outliers:
+		if abs(leak_dev)>0.5: continue
+		detid_ileak[mpart].append(mod)
+		ileak_sim[mpart].append(simLeak)
+		ileak_dat[mpart].append(meaLeak)
+		hi[mpart][QDate].Fill(leak_dev)
+		ileak_count[mpart]+=1
+		if ileakMin>simLeak: ileakMin = simLeak
+		if ileakMin>meaLeak: ileakMin = meaLeak
+		if ileakMax<simLeak: ileakMax = simLeak
+		if ileakMax<meaLeak: ileakMax = meaLeak
+		ileakMax = min([ileakMax,5000])
+		detid_temp[mpart].append(mod)
+		temp_sim[mpart].append(simTemp-273.16)
+		temp_dat[mpart].append(meaTemp-273.16)
+		ht[mpart][QDate].Fill(temp_dev)
+		temp_count[mpart]+=1
+		if tempMin>(simTemp-273.16): tempMin = (simTemp-273.16)
+		if tempMin>(meaTemp-273.16): tempMin = (meaTemp-273.16)
+		if tempMax<(simTemp-273.16): tempMax = (simTemp-273.16)
+		if tempMax<(meaTemp-273.16): tempMax = (meaTemp-273.16)
+		#tempMin = max([tempMin,-50])
+		#tempMax = min([tempMax,50])
 	
-	detid_f1,detid_f2,detid_f3,detid_f4             = [],[],[],[]
-	ileakson_f1,ileakson_f2,ileakson_f3,ileakson_f4 = [],[],[],[]
-	isimbadmods,idatbadmods,tsimbadmods,tdatbadmods = [],[],[],[]
-	ileakd_f1,ileakd_f2,ileakd_f3,ileakd_f4         = [],[],[],[]
-	ts_f1,ts_f2,ts_f3,ts_f4,td_f1,td_f2,td_f3,td_f4 = [],[],[],[],[],[],[],[]
-	i1,i2,i3,i4,t1,t2,t3,t4 = 0,0,0,0,0,0,0,0
-	print "************* Started matching data and simulation! *************"
-	badModFileI = open(saveNameI+'_outliers.txt','w')
-	modDataFileIForTKmap = open(saveNameI+'.txt','w')
+	plotIleak = True
+	plotTemp  = True
+	if all([ileak_count[item]==0 for item in ileak_count.keys()]): 
+		print "ileak all zero"
+		plotIleak = False
+	if all([temp_count[item]==0 for item in temp_count.keys()]): 
+		print "temp all zero"
+		plotTemp = False
+	if plotIleak or plotTemp:
+		Igr = {}#leakage current graphs
+		for par in hi.keys():
+			if ileak_count[par]==0: ileak_count[par],ileak_sim[par],ileak_dat[par]=1,[0],[0]
+			Igr[par] = TGraph(ileak_count[par],np.array(ileak_sim[par]),np.array(ileak_dat[par]))
+			Igr[par].SetName('gri_'+par+'_'+QDate)
+			Igr[par].SetMarkerColor(colors[par])
+			Igr[par].SetFillColor(colors[par])
+			Igr[par].SetMarkerStyle(8)
+			Igr[par].SetMarkerSize(0.3)
+
+		mgnI = TMultiGraph()
+		mgnI.SetTitle("")#Simulated and measured data on "+QDate)
+		mgnI.Add(Igr['TID'],"p")
+		mgnI.Add(Igr['TIB'],"p")
+		mgnI.Add(Igr['TOB'],"p")
+		mgnI.Add(Igr['TEC'],"p")
+		
+		Tgr = {}#temperature graphs
+		for par in ht.keys():
+			if temp_count[par]==0: temp_count[par],temp_sim[par],temp_dat[par]=1,[0],[0]
+			Tgr[par] = TGraph(temp_count[par],np.array(temp_sim[par]),np.array(temp_dat[par]))
+			Tgr[par].SetName('grt_'+par+'_'+QDate)
+			Tgr[par].SetMarkerColor(colors[par])
+			Tgr[par].SetFillColor(colors[par])
+			Tgr[par].SetMarkerStyle(8)
+			Tgr[par].SetMarkerSize(0.3)
+		
+		mgnT = TMultiGraph()
+		mgnT.SetTitle("")#Simulated and measured data on "+QDate)
+		mgnT.Add(Tgr['TID'],"p")
+		mgnT.Add(Tgr['TIB'],"p")
+		mgnT.Add(Tgr['TOB'],"p")
+		mgnT.Add(Tgr['TEC'],"p")
 	
-	badModFileT = open(saveNameT+'_outliers.txt','w')
-	modDataFileTForTKmap = open(saveNameT+'.txt','w')
+		canv = TCanvas(QDate,QDate,1200,1200)
+		gStyle.SetFillColor(kWhite)
+		gStyle.SetStatFormat("6.2g")
+		title = TPaveLabel(0.1,0.96,0.9,0.99,QDate)
+		title.SetBorderSize(0)
+		title.SetFillColor(gStyle.GetTitleFillColor())
+		title.Draw()
+		canv.Divide(2,2)
 	
-	nMods=0
-	for module in detid_dd_I:
-		if module not in detid_dd_T or module not in detid_t: continue
-		if removeBadModules:
-			if ileakc_t_on[module][QuerrDay]*1000<0 or ileakc_t_on[module][QuerrDay]>1000: continue
-			if temp_t_on[module][QuerrDay]<263.16 or temp_t_on[module][QuerrDay]>323.16: continue
-		iLeakMatchInd = detid_dd_I.index(module)
-		tempMatchInd  = detid_dd_T.index(module)
-		if removeBadModules:
-			if ileak_dd[iLeakMatchInd]>2000 or ileak_dd[iLeakMatchInd]<0: continue
-			if temp_dd[tempMatchInd]<-20. or temp_dd[tempMatchInd]>50.: continue
-		if scaleCurrentToMeasTemp: currentScaleMeasTemp = LeakCorrection(temp_dd[tempMatchInd]+273.16,293.16)
-		if not scaleCurrentToMeasTemp: currentScaleMeasTemp = LeakCorrection(temp_t_on[module][QuerrDay],293.16)
-		if partition_t[module]==1 or partition_t[module]==2: # TIB
-			detid_f1.append(module)
-			ileakson_f1.append(ileakc_t_on[module][QuerrDay]*1000*currentScaleMeasTemp)
-			ileakd_f1.append(ileak_dd[iLeakMatchInd])
-			hi_TIB[QDate].Fill((ileakc_t_on[module][QuerrDay]*1000*currentScaleMeasTemp-ileak_dd[iLeakMatchInd])/ileak_dd[iLeakMatchInd])
-			i1+=1
-			ts_f1.append(temp_t_on[module][QuerrDay]-273.16)
-			td_f1.append(temp_dd[tempMatchInd])
-			ht_TIB[QDate].Fill((temp_t_on[module][QuerrDay]-273.16-temp_dd[tempMatchInd])/temp_dd[tempMatchInd])
-			t1+=1
-		if partition_t[module]==3 or partition_t[module]==4: # TOB
-			detid_f2.append(module)
-			ileakson_f2.append(ileakc_t_on[module][QuerrDay]*1000*currentScaleMeasTemp)
-			ileakd_f2.append(ileak_dd[iLeakMatchInd])
-			hi_TOB[QDate].Fill((ileakc_t_on[module][QuerrDay]*1000*currentScaleMeasTemp-ileak_dd[iLeakMatchInd])/ileak_dd[iLeakMatchInd])
-			i2+=1
-			ts_f2.append(temp_t_on[module][QuerrDay]-273.16)
-			td_f2.append(temp_dd[tempMatchInd])
-			ht_TOB[QDate].Fill((temp_t_on[module][QuerrDay]-273.16-temp_dd[tempMatchInd])/temp_dd[tempMatchInd])
-			t2+=1
-		if partition_t[module]==5 or partition_t[module]==6: # TID
-			detid_f3.append(module)
-			ileakson_f3.append(ileakc_t_on[module][QuerrDay]*1000*currentScaleMeasTemp)
-			ileakd_f3.append(ileak_dd[iLeakMatchInd])
-			hi_TID[QDate].Fill((ileakc_t_on[module][QuerrDay]*1000*currentScaleMeasTemp-ileak_dd[iLeakMatchInd])/ileak_dd[iLeakMatchInd])
-			i3+=1
-			ts_f3.append(temp_t_on[module][QuerrDay]-273.16)
-			td_f3.append(temp_dd[tempMatchInd])
-			ht_TID[QDate].Fill((temp_t_on[module][QuerrDay]-273.16-temp_dd[tempMatchInd])/temp_dd[tempMatchInd])
-			t3+=1
-		if partition_t[module]==7 or partition_t[module]==8: # TEC
-			detid_f4.append(module)
-			ileakson_f4.append(ileakc_t_on[module][QuerrDay]*1000*currentScaleMeasTemp)
-			ileakd_f4.append(ileak_dd[iLeakMatchInd])
-			hi_TEC[QDate].Fill((ileakc_t_on[module][QuerrDay]*1000*currentScaleMeasTemp-ileak_dd[iLeakMatchInd])/ileak_dd[iLeakMatchInd])
-			i4+=1
-			ts_f4.append(temp_t_on[module][QuerrDay]-273.16)
-			td_f4.append(temp_dd[tempMatchInd])
-			ht_TEC[QDate].Fill((temp_t_on[module][QuerrDay]-273.16-temp_dd[tempMatchInd])/temp_dd[tempMatchInd])
-			t4+=1
-		pullIleak=(ileakc_t_on[module][QuerrDay]*1000*currentScaleMeasTemp-ileak_dd[iLeakMatchInd])/ileak_dd[iLeakMatchInd]
-		if abs(pullIleak) > 0.4:
-			isimbadmods.append(ileakc_t_on[module][QuerrDay]*1000*currentScaleMeasTemp)
-			idatbadmods.append(ileak_dd[iLeakMatchInd])
-			badModFileI.write('Mod Number: '+str(module)+'\t'+'IleakSim = '+str(ileakc_t_on[module][QuerrDay]*1000*currentScaleMeasTemp)+'\t'+'IleakData = '+str(ileak_dd[iLeakMatchInd])+'\t'+'TempSim = '+str(temp_t_on[module][QuerrDay]-273.16)+'\t'+'TempData = '+str(temp_dd[tempMatchInd])+'\n')
-			outlierModules_I[QDate].append(module)
-		modDataFileIForTKmap.write('Mod Number: '+str(module)+'\t'+'IleakSim = '+str(ileakc_t_on[module][QuerrDay]*1000*currentScaleMeasTemp)+'\t'+'IleakData = '+str(ileak_dd[iLeakMatchInd])+'\n')
-		pullTemp=(temp_t_on[module][QuerrDay]-273.16-temp_dd[tempMatchInd])/temp_dd[tempMatchInd]
-		#if abs(pullTemp) > 0.4 and abs(temp_t_on[module][QuerrDay]-273.16-temp_dd[tempMatchInd])>2:
-		if abs(pullTemp) > 0.6:
-			tsimbadmods.append(temp_t_on[module][QuerrDay]-273.16)
-			tdatbadmods.append(temp_dd[tempMatchInd])
-			badModFileT.write('Mod Number: '+str(module)+'\t'+'TempSim = '+str(temp_t_on[module][QuerrDay]-273.16)+'\t'+'TempData = '+str(temp_dd[tempMatchInd])+'\n')
-			outlierModules_T[QDate].append(module)
-		modDataFileTForTKmap.write('Mod Number: '+str(module)+'\t'+'TempSim = '+str(temp_t_on[module][QuerrDay]-273.16)+'\t'+'TempData = '+str(temp_dd[tempMatchInd])+'\n')
-		hi_all[QDate].Fill(pullIleak)
-		ht_all[QDate].Fill(pullTemp)
-		nMods+=1
-		if nMods%1000==0: print "Finished matching detids for", nMods, "/", simTree.GetEntries(), "modules!"
+		canv.cd(1).SetGrid()#leakage current pad
+		mgnI.Draw("AP")
+		mgnI.GetXaxis().SetTitle(XaxisnameI)
+		mgnI.GetYaxis().SetTitle(YaxisnameI)
+		mgnI.GetXaxis().SetLimits(ileakMin,ileakMax)
+		mgnI.GetHistogram().SetMinimum(ileakMin)
+		mgnI.GetHistogram().SetMaximum(ileakMax)
+		mgnI.GetYaxis().SetTitleOffset(1.5)
+		legI = TLegend(x1,y1,x2,y2)
+		legI.AddEntry(Igr['TIB'],"TIB","f")
+		legI.AddEntry(Igr['TOB'],"TOB","f")
+		legI.AddEntry(Igr['TID'],"TID","f")
+		legI.AddEntry(Igr['TEC'],"TEC","f")
+		legI.SetTextFont(10)
+		legI.Draw()
+		
+		canv.cd(2).SetGrid()#temperature pad
+		mgnT.Draw("AP")
+		mgnT.GetXaxis().SetTitle(XaxisnameT)
+		mgnT.GetYaxis().SetTitle(YaxisnameT)
+		mgnT.GetXaxis().SetLimits(tempMin,tempMax)
+		mgnT.GetHistogram().SetMinimum(tempMin)
+		mgnT.GetHistogram().SetMaximum(tempMax)
+		legT = TLegend(x1,y1,x2,y2)
+		legT.AddEntry(Tgr['TIB'],"TIB","f")
+		legT.AddEntry(Tgr['TOB'],"TOB","f")
+		legT.AddEntry(Tgr['TID'],"TID","f")
+		legT.AddEntry(Tgr['TEC'],"TEC","f")
+		legT.SetTextFont(10)
+		legT.Draw()
 	
-	print "*** Finished matching data and simulation! Plotting results now! ***"
-	I1n = TGraph(i1,np.array(ileakson_f1),np.array(ileakd_f1))
-	I1n.SetMarkerColor(kRed)
-	I1n.SetFillColor(kRed)
-	I1n.SetMarkerStyle(8)
-	I1n.SetMarkerSize(0.3)
-	I2n = TGraph(i2,np.array(ileakson_f2),np.array(ileakd_f2))
-	I2n.SetMarkerColor(kBlue)
-	I2n.SetFillColor(kBlue)
-	I2n.SetMarkerStyle(8)
-	I2n.SetMarkerSize(0.3)
-	I3n = TGraph(i3,np.array(ileakson_f3),np.array(ileakd_f3))
-	I3n.SetMarkerColor(kGreen)
-	I3n.SetFillColor(kGreen)
-	I3n.SetMarkerStyle(8)
-	I3n.SetMarkerSize(0.3)
-	I4n = TGraph(i4,np.array(ileakson_f4),np.array(ileakd_f4))
-	I4n.SetMarkerColor(kBlack)
-	I4n.SetFillColor(kBlack)
-	I4n.SetMarkerStyle(8)
-	I4n.SetMarkerSize(0.3)
-	if plotBadModules:
-		Ibad = TGraph(len(isimbadmods),np.array(isimbadmods),np.array(idatbadmods))
-		Ibad.SetMarkerColor(kYellow)
-		Ibad.SetFillColor(kYellow)
-		Ibad.SetMarkerStyle(8)
-		Ibad.SetMarkerSize(0.3)
+		canv.cd(3).SetGrid()#pull for leakage current
+		histMax = 1.1*max(hi['TIB'][QDate].GetMaximum(),hi['TID'][QDate].GetMaximum(),hi['TOB'][QDate].GetMaximum(),hi['TEC'][QDate].GetMaximum())
+		hi['TIB'][QDate].Draw()
+		hi['TIB'][QDate].GetXaxis().SetTitle("(sim-data)/data")
+		hi['TIB'][QDate].GetYaxis().SetTitle("Entries")
+		hi['TIB'][QDate].GetYaxis().SetTitleOffset(1.5)
+		hi['TIB'][QDate].SetMaximum(histMax)
+		hi['TIB'][QDate].SetLineColor(colors['TIB'])
+		canv.GetPad(1).Update()
+		statsI1 = hi['TIB'][QDate].GetListOfFunctions().FindObject("stats").Clone("statsI1")
+		statsI1.SetY1NDC(.33)
+		statsI1.SetY2NDC(.48)
+		statsI1.SetTextColor(colors['TIB'])
+		hi['TOB'][QDate].Draw("SAMES")
+		hi['TOB'][QDate].SetLineColor(colors['TOB'])
+		canv.GetPad(1).Update()
+		statsI2 = hi['TOB'][QDate].GetListOfFunctions().FindObject("stats").Clone("statsI2")
+		statsI2.SetY1NDC(.48)
+		statsI2.SetY2NDC(.63)
+		statsI2.SetTextColor(colors['TOB'])
+		hi['TID'][QDate].Draw("SAMES")
+		hi['TID'][QDate].SetLineColor(colors['TID'])
+		canv.GetPad(1).Update()
+		statsI3 = hi['TID'][QDate].GetListOfFunctions().FindObject("stats").Clone("statsI3")
+		statsI3.SetY1NDC(.63)
+		statsI3.SetY2NDC(.78)
+		statsI3.SetTextColor(colors['TID'])
+		hi['TEC'][QDate].Draw("SAMES")
+		hi['TEC'][QDate].SetLineColor(colors['TEC'])
+		canv.GetPad(1).Update()
+		statsI4 = hi['TEC'][QDate].GetListOfFunctions().FindObject("stats").Clone("statsI4")
+		statsI4.SetTextColor(colors['TEC'])
+		statsI1.Draw()
+		statsI2.Draw()
+		statsI3.Draw()
+		statsI4.Draw()
 	
-	T1n = TGraph(t1,np.array(ts_f1),np.array(td_f1))
-	T1n.SetMarkerColor(kRed)
-	T1n.SetFillColor(kRed)
-	T1n.SetMarkerStyle(8)
-	T1n.SetMarkerSize(0.3)
-	T2n = TGraph(t2,np.array(ts_f2),np.array(td_f2))
-	T2n.SetMarkerColor(kBlue)
-	T2n.SetFillColor(kBlue)
-	T2n.SetMarkerStyle(8)
-	T2n.SetMarkerSize(0.3)
-	T3n = TGraph(t3,np.array(ts_f3),np.array(td_f3))
-	T3n.SetMarkerColor(kGreen)
-	T3n.SetFillColor(kGreen)
-	T3n.SetMarkerStyle(8)
-	T3n.SetMarkerSize(0.3)
-	T4n = TGraph(t4,np.array(ts_f4),np.array(td_f4))
-	T4n.SetMarkerColor(kBlack)
-	T4n.SetFillColor(kBlack)
-	T4n.SetMarkerStyle(8)
-	T4n.SetMarkerSize(0.3)
-	if plotBadModules:
-		Tbad = TGraph(len(tsimbadmods),np.array(tsimbadmods),np.array(tdatbadmods))
-		Tbad.SetMarkerColor(kYellow)
-		Tbad.SetFillColor(kYellow)
-		Tbad.SetMarkerStyle(8)
-		Tbad.SetMarkerSize(0.3)
-	
-	XaxisnameI = "Simulated current (#muA)"
-	YaxisnameI = "Measured current (#muA)"
-	XaxisnameT = "Simulated temperature (C)"
-	YaxisnameT = "Measured temperature (C)"
-	
-	mgnI = TMultiGraph()
-	mgnI.SetTitle("Simulated and measured data on "+QDate)
-	mgnI.Add(I3n,"p")
-	mgnI.Add(I1n,"p")
-	mgnI.Add(I2n,"p")
-	mgnI.Add(I4n,"p")
-	if plotBadModules: mgnI.Add(Ibad,"p")
-	
-	mgnT = TMultiGraph()
-	mgnT.SetTitle("Simulated and measured data on "+QDate)
-	mgnT.Add(T3n,"p")
-	mgnT.Add(T1n,"p")
-	mgnT.Add(T2n,"p")
-	mgnT.Add(T4n,"p")
-	if plotBadModules: mgnT.Add(Tbad,"p")
-	
-	cI = TCanvas("cI","Cross Check Corrected Current",400,800)
-	gStyle.SetFillColor(kWhite)
-	cI.Divide(1,2)
-	
-	cI.cd(1).SetGrid()
-	mgnI.Draw("AP")
-	mgnI.GetXaxis().SetTitle(XaxisnameI)
-	mgnI.GetYaxis().SetTitle(YaxisnameI)
-	mgnI.GetXaxis().SetLimits(0.,IleakMax[q])
-	mgnI.GetHistogram().SetMinimum(0.)
-	mgnI.GetHistogram().SetMaximum(IleakMax[q])
-	mgnI.GetYaxis().SetTitleOffset(1.5)
-	x1=.7
-	y1=0.15
-	x2=x1+.15
-	y2=y1+.225
-	legI = TLegend(x1,y1,x2,y2)
-	legI.AddEntry(I1n,"TIB","f")
-	legI.AddEntry(I2n,"TOB","f")
-	legI.AddEntry(I3n,"TID","f")
-	legI.AddEntry(I4n,"TEC","f")
-	if plotBadModules: legI.AddEntry(Ibad,"Outliers","f")
-	legI.SetTextFont(10)
-	legI.Draw()
-	
-	cI.cd(2).SetGrid()
-# 	hi_all[QDate].Draw()
-# 	hi_all[QDate].GetXaxis().SetTitle("(sim-data)/data")
-# 	hi_all[QDate].GetYaxis().SetTitle("Entries")
-# 	hi_all[QDate].GetYaxis().SetTitleOffset(1.5)
-	hi_TIB[QDate].Draw()
-	hi_TIB[QDate].GetXaxis().SetTitle("(sim-data)/data")
-	hi_TIB[QDate].GetYaxis().SetTitle("Entries")
-	hi_TIB[QDate].GetYaxis().SetTitleOffset(1.5)
-	hi_TIB[QDate].SetMaximum(1.1*max(hi_TIB[QDate].GetMaximum(),hi_TID[QDate].GetMaximum(),hi_TOB[QDate].GetMaximum(),hi_TEC[QDate].GetMaximum()))
-	hi_TIB[QDate].SetLineColor(kRed)
-	cI.GetPad(1).Update()
-	statsI1 = hi_TIB[QDate].GetListOfFunctions().FindObject("stats").Clone("statsI1")
-	statsI1.SetY1NDC(.33)
-	statsI1.SetY2NDC(.48)
-	statsI1.SetTextColor(kRed)
-	hi_TOB[QDate].Draw("SAMES")
-	hi_TOB[QDate].SetLineColor(kBlue)
-	cI.GetPad(1).Update()
-	statsI2 = hi_TOB[QDate].GetListOfFunctions().FindObject("stats").Clone("statsI2")
-	statsI2.SetY1NDC(.48)
-	statsI2.SetY2NDC(.63)
-	statsI2.SetTextColor(kBlue)
-	hi_TID[QDate].Draw("SAMES")
-	hi_TID[QDate].SetLineColor(kGreen)
-	cI.GetPad(1).Update()
-	statsI3 = hi_TID[QDate].GetListOfFunctions().FindObject("stats").Clone("statsI3")
-	statsI3.SetY1NDC(.63)
-	statsI3.SetY2NDC(.78)
-	statsI3.SetTextColor(kGreen)
-	hi_TEC[QDate].Draw("SAMES")
-	hi_TEC[QDate].SetLineColor(kBlack)
-	cI.GetPad(1).Update()
-	statsI4 = hi_TEC[QDate].GetListOfFunctions().FindObject("stats").Clone("statsI4")
-	statsI4.SetTextColor(kBlack)
-	statsI1.Draw()
-	statsI2.Draw()
-	statsI3.Draw()
-	statsI4.Draw()
-	cI.Write()
-	cI.cd(1).Write()
-	cI.cd(2).Write()
-	cI.SaveAs(saveNameI+".png")
-	cI.SaveAs(saveNameI+".pdf")
-	
-	cT = TCanvas("cT","Cross Check Corrected Temperature",400,800)
-	gStyle.SetFillColor(kWhite)
-	cT.Divide(1,2)
-	
-	cT.cd(1).SetGrid()
-	mgnT.Draw("AP")
-	mgnT.GetXaxis().SetTitle(XaxisnameT)
-	mgnT.GetYaxis().SetTitle(YaxisnameT)
-	mgnT.GetXaxis().SetLimits(-15.,TempMax[q])
-	mgnT.GetHistogram().SetMinimum(-15.)
-	mgnT.GetHistogram().SetMaximum(TempMax[q])
-	legT = TLegend(x1,y1,x2,y2)
-	legT.AddEntry(T1n,"TIB","f")
-	legT.AddEntry(T2n,"TOB","f")
-	legT.AddEntry(T3n,"TID","f")
-	legT.AddEntry(T4n,"TEC","f")
-	if plotBadModules: legT.AddEntry(Tbad,"Outliers","f")
-	legT.SetTextFont(10)
-	legT.Draw()
-	
-	cT.cd(2).SetGrid()
-# 	ht_all[QDate].Draw()
-# 	ht_all[QDate].GetXaxis().SetTitle("(sim-data)/data")
-# 	ht_all[QDate].GetYaxis().SetTitle("Entries")
-# 	ht_all[QDate].GetYaxis().SetTitleOffset(1.5)
-	ht_TIB[QDate].Draw()
-	ht_TIB[QDate].GetXaxis().SetTitle("(sim-data)/data")
-	ht_TIB[QDate].GetYaxis().SetTitle("Entries")
-	ht_TIB[QDate].GetYaxis().SetTitleOffset(1.5)
-	ht_TIB[QDate].SetMaximum(1.1*max(ht_TIB[QDate].GetMaximum(),ht_TID[QDate].GetMaximum(),ht_TOB[QDate].GetMaximum(),ht_TEC[QDate].GetMaximum()))
-	ht_TIB[QDate].SetLineColor(kRed)
-	cT.GetPad(1).Update()
-	statsT1 = ht_TIB[QDate].GetListOfFunctions().FindObject("stats").Clone("statsT1")
-	statsT1.SetY1NDC(.33)
-	statsT1.SetY2NDC(.48)
-	statsT1.SetTextColor(kRed)
-	ht_TOB[QDate].Draw("SAMES")
-	ht_TOB[QDate].SetLineColor(kBlue)
-	cT.GetPad(1).Update()
-	statsT2 = ht_TOB[QDate].GetListOfFunctions().FindObject("stats").Clone("statsT2")
-	statsT2.SetY1NDC(.48)
-	statsT2.SetY2NDC(.63)
-	statsT2.SetTextColor(kBlue)
-	ht_TID[QDate].Draw("SAMES")
-	ht_TID[QDate].SetLineColor(kGreen)
-	cT.GetPad(1).Update()
-	statsT3 = ht_TID[QDate].GetListOfFunctions().FindObject("stats").Clone("statsT3")
-	statsT3.SetY1NDC(.63)
-	statsT3.SetY2NDC(.78)
-	statsT3.SetTextColor(kGreen)
-	ht_TEC[QDate].Draw("SAMES")
-	ht_TEC[QDate].SetLineColor(kBlack)
-	cT.GetPad(1).Update()
-	statsT4 = ht_TEC[QDate].GetListOfFunctions().FindObject("stats").Clone("statsT4")
-	statsT4.SetTextColor(kBlack)
-	statsT1.Draw()
-	statsT2.Draw()
-	statsT3.Draw()
-	cT.Write()
-	cT.cd(1).Write()
-	cT.cd(2).Write()
-	cT.SaveAs(saveNameT+".png")
-	cT.SaveAs(saveNameT+".pdf")
-	hi_TOB[QDate].Write()
-	hi_TIB[QDate].Write()
-	hi_TID[QDate].Write()
-	hi_TEC[QDate].Write()
-	ht_TOB[QDate].Write()
-	ht_TIB[QDate].Write()
-	ht_TID[QDate].Write()
-	ht_TEC[QDate].Write()
+		canv.cd(4).SetGrid()#pull for temperature
+		histMax = 1.1*max(ht['TIB'][QDate].GetMaximum(),ht['TID'][QDate].GetMaximum(),ht['TOB'][QDate].GetMaximum(),ht['TEC'][QDate].GetMaximum())
+		ht['TIB'][QDate].Draw()
+		ht['TIB'][QDate].GetXaxis().SetTitle("(sim-data)/data")
+		ht['TIB'][QDate].GetYaxis().SetTitle("Entries")
+		ht['TIB'][QDate].GetYaxis().SetTitleOffset(1.5)
+		ht['TIB'][QDate].SetMaximum(histMax)
+		ht['TIB'][QDate].SetLineColor(colors['TIB'])
+		canv.GetPad(1).Update()
+		statsT1 = ht['TIB'][QDate].GetListOfFunctions().FindObject("stats").Clone("statsT1")
+		statsT1.SetY1NDC(.33)
+		statsT1.SetY2NDC(.48)
+		statsT1.SetTextColor(colors['TIB'])
+		ht['TOB'][QDate].Draw("SAMES")
+		ht['TOB'][QDate].SetLineColor(colors['TOB'])
+		canv.GetPad(1).Update()
+		statsT2 = ht['TOB'][QDate].GetListOfFunctions().FindObject("stats").Clone("statsT2")
+		statsT2.SetY1NDC(.48)
+		statsT2.SetY2NDC(.63)
+		statsT2.SetTextColor(colors['TOB'])
+		ht['TID'][QDate].Draw("SAMES")
+		ht['TID'][QDate].SetLineColor(colors['TID'])
+		canv.GetPad(1).Update()
+		statsT3 = ht['TID'][QDate].GetListOfFunctions().FindObject("stats").Clone("statsT3")
+		statsT3.SetY1NDC(.63)
+		statsT3.SetY2NDC(.78)
+		statsT3.SetTextColor(colors['TID'])
+		ht['TEC'][QDate].Draw("SAMES")
+		ht['TEC'][QDate].SetLineColor(colors['TEC'])
+		canv.GetPad(1).Update()
+		statsT4 = ht['TEC'][QDate].GetListOfFunctions().FindObject("stats").Clone("statsT4")
+		statsT4.SetTextColor(colors['TEC'])
+		statsT1.Draw()
+		statsT2.Draw()
+		statsT3.Draw()
+		
+		canv.cd()
+		title.Draw()
+
+		canv.SaveAs(outDir+"/"+QDate+".png")
+		canv.SaveAs(outDir+"/"+QDate+".pdf")
+		
+		for par in Igr.keys():
+			Igr[par].Write()
+			Tgr[par].Write()
+			hi[par][QDate].Write()
+			ht[par][QDate].Write()
+
 outRfile.Close()
 simFile.Close()
 	

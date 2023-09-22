@@ -21,12 +21,9 @@ gROOT.SetBatch(1)
 # os._exit(1)
 
 #******************************Input to edit******************************************************
-simDate = "2016_12_6"
+simDate = "2016_9_13"
 readTree=False # This needs to be true if running the code on the tree for the first time. It will dump what's read from tree into pickle files and these can be loaded if this option is set to "False"
-readDCU=True
-doFit=False
-mcSF=40./35.
-postFix='_SF40o35'
+readPSU=True
 
 #READ IN TREE
 InTreeSim="DarkSimAllModules_"+simDate+"/DarkSimAllModules_"+simDate+".root"
@@ -97,12 +94,12 @@ else:
 	print "******************* LOADED TREE FROM PICKLE ********************"
 
 print "========>>>>>>>> READING TRACKER MAP"
-TrackMap="InputDataLocal/TrackMap.root"
+TrackMap="InputData/TrackMap.root"
 TrackMapRFile = TFile(TrackMap,'READ')
 TrackMapTTree = TrackMapRFile.Get('treemap')
 x,y,z,l,w1,w2,d,part,pos = {},{},{},{},{},{},{},{},{}
 volume = {}
-dcuileak = {}
+psuileak = {}
 for event in TrackMapTTree:
 	x[event.DETID] = event.X
 	y[event.DETID] = event.Y
@@ -114,12 +111,12 @@ for event in TrackMapTTree:
 	part[event.DETID] = event.Partition
 	pos[event.DETID] = event.StructPos
 	volume[event.DETID] = event.D*(event.W1+event.W2)*(event.L/2)*1e6 #cm^3
-	dcuileak[event.DETID] = [-1]*len(dtime_t)
+	psuileak[event.DETID] = [-1]*len(dtime_t)
 TrackMapRFile.Close()
 print "========>>>>>>>> FINISHED READING TRACKER MAP"
 
 print "========>>>>>>>> READING FLUENCE MATCHING"
-TFileFluence = TFile("InputDataLocal/FluenceMatching.root",'READ')
+TFileFluence = TFile("InputData/FluenceMatching.root",'READ')
 TTreeFluence = TFileFluence.Get("SimTree_old")
 fluenceNew = {}
 for module in TTreeFluence:
@@ -128,7 +125,7 @@ TFileFluence.Close()
 print "========>>>>>>>> FINISHED READING FLUENCE MATCHING"
 
 # Read Input Data for Lumi
-lumiFile = "InputDataLocal/lumi/Lumi.txt"
+lumiFile = "InputData/lumi/Lumi.txt"
 infileLumi = open(lumiFile, 'r')
 print "Reading Lumi File"
 linesLumi = infileLumi.readlines()
@@ -181,82 +178,85 @@ def findClosest(theList, theNum): #Assumes theList is sorted and returns the clo
     else:
        return theInd-1
 
-dcufiles = []
-for file in findfiles('MeasDataLocal/DCU/Ileak_perDay', '*.txt'):
-	dcufiles.append(file)
+print "Getting list of modules in power groups"
+psudcumapdata = open("MeasData/psdcumap_complete.dat", 'r')
+linespsudcumap = psudcumapdata.readlines()
+psudcumapdata.close()
 
-if readDCU:
+psutodetid = {}
+for line in linespsudcumap:
+	data = line.strip().split()
+	try: psutodetid[data[1]] = []
+	except: print data
+
+for line in linespsudcumap:
+	data = line.strip().split()
+	detid = int(data[0])
+	psu = data[1]
+	psutodetid[psu].append(detid)
+
+psufiles = []
+for file in findfiles('MeasData/PSU/', '*.txt'):
+	psufiles.append(file)
+
+if readPSU:
 	ind = 0
-	print "Reading DCU data ..."
-	for file in dcufiles:
-		if ind%500==0: print "Finished",ind,"out of",len(dcufiles)
+	print "Reading PSU data ..."
+	for file in psufiles:
+		if ind%500==0: print "Finished",ind,"out of",len(psufiles)
 		ind+=1
-		#if 'TIB' not in file.split('/')[-1] and 'TOB' not in file.split('/')[-1]: continue
-		dcudata = open(file, 'r')
-		linesdcu = dcudata.readlines()
-		dcudata.close()
-		mod=int(file.split('/')[-1][:-4])
-		for line in linesdcu:
+		if 'TIB' not in file.split('/')[-1] and 'TOB' not in file.split('/')[-1]: continue
+		psudata = open(file, 'r')
+		linespsu = psudata.readlines()
+		psudata.close()
+		psu=file.split('/')[-1][:-4]
+		for line in linespsu:
 			data = line.strip().split()
 			lnxTime = int(data[0])
 			index = findClosest(dtime_t_2,TDatime(lnxTime).GetDate())
-			modIleak = float(data[1])
-			dcuileak[mod][index]=modIleak
-	print "Damping DCU data into pickle ..."
-	#pickle.dump(dcuileak,open("DarkSimAllModules_"+simDate+'/dcuileak.p','wb'))
+			if dtime_t_2[index]!=TDatime(lnxTime).GetDate(): continue
+			psuVol = sum([volume[mod] for mod in psutodetid[psu]])
+			avgPSULeak = float(data[1])/psuVol
+			for mod in psutodetid[psu]: 
+				modIleak = avgPSULeak*volume[mod]
+				if modIleak>psuileak[mod][index]: psuileak[mod][index]=modIleak
+	print "Damping PSU data into pickle ..."
+	pickle.dump(psuileak,open("DarkSimAllModules_"+simDate+'/psuileak.p','wb'))
 else:
-	print "Loading DCU data from pickle ..."
-	dcuileak=pickle.load(open("DarkSimAllModules_"+simDate+'/dcuileak.p','rb'))
+	print "Loading PSU data from pickle ..."
+	psuileak=pickle.load(open("DarkSimAllModules_"+simDate+'/psuileak.p','rb'))
 
 k_B = 8.617343183775136189e-05
 def LeakCorrection(Tref,T):
 	E = 1.21 # formerly 1.12 eV
-	return (Tref/T)*(Tref/T)*math.exp(-(E/(2.*k_B))*(1./Tref-1./T))
+	return (Tref/T)*(Tref/T)*exp(-(E/(2.*k_B))*(1./Tref-1./T))
 
 print "========>>>>>>>> SCALING CURRENT TO 0C and AVERAGING"
 for mod in ileakc_t_on.keys():
-	ileakc_t_on[mod]=[item*mcSF*LeakCorrection(273.16,293.16)*1.e3/volume[mod] for item in ileakc_t_on[mod]] #muA/cm^3 @0C
-	dcuileak[mod]=[dcuileak[mod][ind]*LeakCorrection(273.16,temp_t_on[mod][ind])*1.e3/volume[mod] for ind in range(len(dcuileak[mod]))] #muA/cm^3 @0C
+	ileakc_t_on[mod]=[item*LeakCorrection(273.16,293.16)*1.e3/volume[mod] for item in ileakc_t_on[mod]] #muA/cm^3 @0C
+	psuileak[mod]=[psuileak[mod][ind]*LeakCorrection(273.16,temp_t_on[mod][ind])/volume[mod] for ind in range(len(psuileak[mod]))] #muA/cm^3 @0C
 
 runDir=os.getcwd()
-regions = {
-		   '0': [0,5.8],
-		   '1': [6.1,21],
-		   '2': [30.2,34],
-		   '3': [36,50],
-		   '4': [53,67],
-		   '5': [69,75]
-		   }
-datFits = {}
-simFits = {}
+
 def getTGraph(modPart,layer,color):
 	Ion=[0]*len(dtime_t)
+	IonData=[0]*len(dtime_t)
 	nModsInLayer=0
+	nModsInLayerData=[0]*len(dtime_t)
 	for mod in part.keys():
 		if modPart not in part[mod]: continue
-		if pos[mod]!=layer: continue
+		if layer!=pos[mod]: continue
 		if mod not in ileakc_t_on.keys(): continue
 		for day in range(len(dtime_t)):
 			Ion[day]+=ileakc_t_on[mod][day]
+			if psuileak[mod][day]>0: 
+				IonData[day]+=psuileak[mod][day]
+				nModsInLayerData[day]+=1
 		nModsInLayer+=1
 	Ion = [item/nModsInLayer for item in Ion]
-	IonData=[]#[-1]*len(dtime_t)
-	iperData=[]
-	lumiAllData=[]
-	for t in range(len(dtime_t_2)):
-		leakTemppp = 0
-		nMods = 0
-		for mod in part.keys():
-			if modPart not in part[mod]: continue
-			if pos[mod]!=layer: continue
-			if dcuileak[mod][t]>0:
-				leakTemppp+=dcuileak[mod][t]
-				nMods+=1
-		if nMods!=0: 
-			#IonData[t]=leakTemppp/nMods
-			IonData.append(leakTemppp/nMods)
-			iperData.append(dtime_t[t])
-			lumiAllData.append(lumiAll[t])
+	for t in range(len(IonData)):
+		if nModsInLayerData[t]!=0: IonData[t] = IonData[t]/nModsInLayerData[t]
+		if IonData[t]==0: IonData[t]=-1
 	iper=dtime_t
 
 	IGr_sim = TGraph(len(iper),array('d',iper),array('d',Ion))
@@ -274,34 +274,21 @@ def getTGraph(modPart,layer,color):
 	IGr_vs_lumi_sim.SetMarkerStyle(7)
 	IGr_vs_lumi_sim.SetMarkerSize(0.6)
 	
-	IGr_data = TGraph(len(iperData),array('d',iperData),array('d',IonData))
+	IGr_data = TGraph(len(iper),array('d',iper),array('d',IonData))
 	IGr_data.SetMarkerColor(color)
 	IGr_data.SetLineColor(color)
 	IGr_data.SetLineStyle(1)
 	IGr_data.SetLineWidth(3)
 	IGr_data.SetMarkerStyle(2)
 	IGr_data.SetMarkerSize(0.9)
-	IGr_vs_lumi_data = TGraph(len(iperData),array('d',lumiAllData),array('d',IonData))
+	IGr_vs_lumi_data = TGraph(len(iper),array('d',lumiAll),array('d',IonData))
 	IGr_vs_lumi_data.SetMarkerColor(color)
 	IGr_vs_lumi_data.SetLineColor(color)
 	IGr_vs_lumi_data.SetLineStyle(1)
 	IGr_vs_lumi_data.SetLineWidth(3)
 	IGr_vs_lumi_data.SetMarkerStyle(2)
 	IGr_vs_lumi_data.SetMarkerSize(0.9)
-	if doFit:
-		lines = {}
-		datFits[modPart+str(layer)] = []
-		simFits[modPart+str(layer)] = []
-		for reg in sorted(regions.keys()):
-			lines[reg] = TF1("line"+reg,"pol1",regions[reg][0],regions[reg][1])
-			IGr_vs_lumi_data.Fit("line"+reg,"RS")
-			try: datFits[modPart+str(layer)].append([lines[reg].GetParameter(0),lines[reg].GetParameter(1)])
-			except: datFits[modPart+str(layer)].append([-999,-999])
-		
-			IGr_vs_lumi_sim.Fit("line"+reg,"RS")
-			try: simFits[modPart+str(layer)].append([lines[reg].GetParameter(0),lines[reg].GetParameter(1)])
-			except: simFits[modPart+str(layer)].append([-999,-999])
-		
+	
 	return IGr_sim,IGr_data,IGr_vs_lumi_sim,IGr_vs_lumi_data
 	
 print "Doing TOB_L1"
@@ -332,8 +319,8 @@ dmmy_gr_dat.SetLineWidth(3)
 dmmy_gr_dat.SetMarkerStyle(2)
 dmmy_gr_dat.SetMarkerSize(2.)
 
-if not os.path.exists(runDir+'/DarkSimAllModules_'+simDate+'/plotLayers_DCU/'): os.system('mkdir DarkSimAllModules_'+simDate+'/plotLayers_DCU/')
-outRfile = TFile("DarkSimAllModules_"+simDate+"/plotLayers_DCU/TOB_avgOverLayer"+postFix+".root",'RECREATE')
+if not os.path.exists(runDir+'/DarkSimAllModules_'+simDate+'/plotLayers_PSU/'): os.system('mkdir DarkSimAllModules_'+simDate+'/plotLayers_PSU/')
+outRfile = TFile("DarkSimAllModules_"+simDate+"/plotLayers_PSU/TOB_avgOverLayer.root",'RECREATE')
 L1gr_sim.Write()
 L2gr_sim.Write()
 L3gr_sim.Write()
@@ -392,7 +379,6 @@ mgnI.GetXaxis().SetLimits(min(dtime_t),max(dtime_t))
 mgnI.GetHistogram().SetMinimum(0)#min(Ion))
 #mgnI.GetHistogram().SetMaximum(1.2*max(max(ileakc_t_on[L1Mod][5:-5]),max(ileakc_t_on[L2Mod][5:-5]),max(ileakc_t_on[L3Mod][5:-5]),max(ileakc_t_on[L4Mod][5:-5]))*LeakCorrection(273.16,293.16))#2.25*max(Ion))
 #mgnI.GetYaxis().SetTitleOffset(1.5)
-
 x1=0.15#.7
 y2=.875
 x2=x1+.13
@@ -413,9 +399,9 @@ leg_dmmy.SetTextFont(10)
 leg_dmmy.Draw()
 
 cI.Write()
-saveNameI = "DarkSimAllModules_"+simDate+"/plotLayers_DCU/TOB_Ileak"
-cI.SaveAs(saveNameI+"_avgOverLayer"+postFix+".png")
-cI.SaveAs(saveNameI+"_avgOverLayer"+postFix+".pdf")
+saveNameI = "DarkSimAllModules_"+simDate+"/plotLayers_PSU/TOB_Ileak"
+cI.SaveAs(saveNameI+"_avgOverLayer.png")
+cI.SaveAs(saveNameI+"_avgOverLayer.pdf")
 
 mgnIvsLumi = TMultiGraph()
 mgnIvsLumi.SetTitle("TOB")
@@ -441,19 +427,9 @@ cIvsLumi.SetGrid()
 mgnIvsLumi.Draw("AP")
 mgnIvsLumi.GetXaxis().SetTitle("Integrated Luminosity [fb^{-1}]")
 mgnIvsLumi.GetYaxis().SetTitle(YaxisnameI)
-mgnIvsLumi.GetXaxis().SetLimits(0,80)
+mgnIvsLumi.GetXaxis().SetLimits(0,70)
 mgnIvsLumi.GetHistogram().SetMinimum(0)#min(Ion))
-mgnIvsLumi.GetHistogram().SetMaximum(44)
 #mgnIvsLumi.GetHistogram().SetMaximum(1.2*max(max(ileakc_t_on[L1Mod][5:-5]),max(ileakc_t_on[L2Mod][5:-5]),max(ileakc_t_on[L3Mod][5:-5]),max(ileakc_t_on[L4Mod][5:-5]))*LeakCorrection(273.16,293.16))#2.25*max(Ion))
-
-if doFit:
-	fits = {}
-	for lyr in range(1,7):
-		for reg in sorted(regions.keys()):
-			fits["TOB"+str(lyr)+"_d"+reg] = TF1("TOB"+str(lyr)+"_d"+reg,str(datFits["TOB"+str(lyr)][int(reg)][1])+"*x+"+str(datFits["TOB"+str(lyr)][int(reg)][0]),regions[reg][0],regions[reg][1])
-			fits["TOB"+str(lyr)+"_s"+reg] = TF1("TOB"+str(lyr)+"_s"+reg,str(simFits["TOB"+str(lyr)][int(reg)][1])+"*x+"+str(simFits["TOB"+str(lyr)][int(reg)][0]),regions[reg][0],regions[reg][1])
-			fits["TOB"+str(lyr)+"_d"+reg].Draw("same")
-			fits["TOB"+str(lyr)+"_s"+reg].Draw("same")
 
 legIvsLumi = TLegend(x1,y1,x2,y2)
 legIvsLumi.AddEntry(L1gr_vs_lumi_sim,"Layer 1","pl")
@@ -467,8 +443,8 @@ legIvsLumi.Draw()
 leg_dmmy.Draw()
 
 cIvsLumi.Write()
-cIvsLumi.SaveAs(saveNameI+"_vs_lumi_avgOverLayer"+postFix+".png")
-cIvsLumi.SaveAs(saveNameI+"_vs_lumi_avgOverLayer"+postFix+".pdf")
+cIvsLumi.SaveAs(saveNameI+"_vs_lumi_avgOverLayer.png")
+cIvsLumi.SaveAs(saveNameI+"_vs_lumi_avgOverLayer.pdf")
 
 print "Doing TIB_L1"
 L1gr_sim_tib, L1gr_data_tib, L1gr_vs_lumi_sim_tib, L1gr_vs_lumi_data_tib = getTGraph("TIB",1,kBlack)
@@ -479,8 +455,8 @@ L3gr_sim_tib, L3gr_data_tib, L3gr_vs_lumi_sim_tib, L3gr_vs_lumi_data_tib = getTG
 print "Doing TIB_L4"
 L4gr_sim_tib, L4gr_data_tib, L4gr_vs_lumi_sim_tib, L4gr_vs_lumi_data_tib = getTGraph("TIB",4,kGreen)
 
-if not os.path.exists(runDir+'/DarkSimAllModules_'+simDate+'/plotLayers_DCU/'): os.system('mkdir DarkSimAllModules_'+simDate+'/plotLayers_DCU/')
-outRfile_tib = TFile("DarkSimAllModules_"+simDate+"/plotLayers_DCU/TIB_avgOverLayer"+postFix+".root",'RECREATE')
+if not os.path.exists(runDir+'/DarkSimAllModules_'+simDate+'/plotLayers_PSU/'): os.system('mkdir DarkSimAllModules_'+simDate+'/plotLayers_PSU/')
+outRfile_tib = TFile("DarkSimAllModules_"+simDate+"/plotLayers_PSU/TIB_avgOverLayer.root",'RECREATE')
 L1gr_sim_tib.Write()
 L2gr_sim_tib.Write()
 L3gr_sim_tib.Write()
@@ -539,9 +515,9 @@ legI_tib.Draw()
 leg_dmmy.Draw()
 
 cI_tib.Write()
-saveNameI = "DarkSimAllModules_"+simDate+"/plotLayers_DCU/TIB_Ileak"
-cI_tib.SaveAs(saveNameI+"_avgOverLayer"+postFix+".png")
-cI_tib.SaveAs(saveNameI+"_avgOverLayer"+postFix+".pdf")
+saveNameI = "DarkSimAllModules_"+simDate+"/plotLayers_PSU/TIB_Ileak"
+cI_tib.SaveAs(saveNameI+"_avgOverLayer.png")
+cI_tib.SaveAs(saveNameI+"_avgOverLayer.pdf")
 
 mgnIvsLumi_tib = TMultiGraph()
 mgnIvsLumi_tib.SetTitle("TIB")
@@ -563,19 +539,11 @@ cIvsLumi_tib.SetGrid()
 mgnIvsLumi_tib.Draw("AP")
 mgnIvsLumi_tib.GetXaxis().SetTitle("Integrated Luminosity [fb^{-1}]")
 mgnIvsLumi_tib.GetYaxis().SetTitle(YaxisnameI)
-mgnIvsLumi_tib.GetXaxis().SetLimits(0,80)
+mgnIvsLumi_tib.GetXaxis().SetLimits(0,70)
 mgnIvsLumi_tib.GetHistogram().SetMinimum(0)#min(Ion))
 #mgnIvsLumi_tib.GetHistogram().SetMaximum(65)
 #mgnIvsLumi.GetHistogram().SetMaximum(1.2*max(max(ileakc_t_on[L1Mod][5:-5]),max(ileakc_t_on[L2Mod][5:-5]),max(ileakc_t_on[L3Mod][5:-5]),max(ileakc_t_on[L4Mod][5:-5]))*LeakCorrection(273.16,293.16))#2.25*max(Ion))
 #mgnI.GetYaxis().SetTitleOffset(1.5)
-
-if doFit:
-	for lyr in range(1,5):
-		for reg in sorted(regions.keys()):
-			fits["TIB"+str(lyr)+"_d"+reg] = TF1("TIB"+str(lyr)+"_d"+reg,str(datFits["TIB"+str(lyr)][int(reg)][1])+"*x+"+str(datFits["TIB"+str(lyr)][int(reg)][0]),regions[reg][0],regions[reg][1])
-			fits["TIB"+str(lyr)+"_s"+reg] = TF1("TIB"+str(lyr)+"_s"+reg,str(simFits["TIB"+str(lyr)][int(reg)][1])+"*x+"+str(simFits["TIB"+str(lyr)][int(reg)][0]),regions[reg][0],regions[reg][1])
-			fits["TIB"+str(lyr)+"_d"+reg].Draw("same")
-			fits["TIB"+str(lyr)+"_s"+reg].Draw("same")
 
 legIvsLumi_tib = TLegend(x1,y1,x2,y2)
 legIvsLumi_tib.AddEntry(L1gr_vs_lumi_sim_tib,"Layer 1","pl")
@@ -587,12 +555,8 @@ legIvsLumi_tib.Draw()
 leg_dmmy.Draw()
 
 cIvsLumi_tib.Write()
-cIvsLumi_tib.SaveAs(saveNameI+"_vs_lumi_avgOverLayer"+postFix+".png")
-cIvsLumi_tib.SaveAs(saveNameI+"_vs_lumi_avgOverLayer"+postFix+".pdf")
-
-if doFit:
-	pickle.dump(datFits,open(runDir+'/DarkSimAllModules_'+simDate+'/plotLayers_DCU/datFits'+postFix+'.p','wb'))
-	pickle.dump(simFits,open(runDir+'/DarkSimAllModules_'+simDate+'/plotLayers_DCU/simFits'+postFix+'.p','wb'))
+cIvsLumi_tib.SaveAs(saveNameI+"_vs_lumi_avgOverLayer.png")
+cIvsLumi_tib.SaveAs(saveNameI+"_vs_lumi_avgOverLayer.pdf")
 
 outRfile.Close()	
 outRfile_tib.Close()
