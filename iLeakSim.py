@@ -298,8 +298,8 @@ for imod in range(iteration*Nmodules,(iteration+1)*Nmodules): #This for loop run
 	modIniIleak =iniLeak[ileaktreeind]/1000*LeakCorrection(293.16,Ton) # scale initial leak to 20C, and convert from mA to A
 
 	xsec_7tev  = 7.35e7 #nb, from: https://arxiv.org/pdf/1110.1395.pdf
-	xsec_8tev  = 7.47e7 #nb
-	xsec_13tev = 7.91e7 #nb
+	xsec_8tev  = 7.47e7 #nb, from: https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.111.012001
+	xsec_13tev = 7.95e7 #nb, from: https://arxiv.org/pdf/1712.06153.pdf
 	xsec_14tev = 7.99e7 #nb
 	FluenceSF  = 1.0 #temporary scale factor for debugging discrepancy btw sim. and mea.
 	TempOffSet = 3.0 #temporary scale factor for debugging discrepancy btw sim. and mea.

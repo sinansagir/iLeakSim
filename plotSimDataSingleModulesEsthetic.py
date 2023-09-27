@@ -18,8 +18,8 @@ CMS_lumi.writeExtraText = 1
 CMS_lumi.extraText = "Preliminary"
 CMS_lumi.lumi_sqrtS = "13 TeV" # used with iPeriod = 0, e.g. for simulation-only plots (default is an empty string)
 
-iPos = 10
-if( iPos==0 ): CMS_lumi.relPosX = 0.12
+iPos = 0
+if( iPos==0 ): CMS_lumi.relPosX = 0.09
 
 H_ref = 600; 
 W_ref = 900;
@@ -237,11 +237,11 @@ for QuerrMod in [369120486,436262468]:
 	ttext.SetNDC()
 	ttext.SetTextSize(0.08)
 	ttext.SetTextAlign(21) # align right
-	ttext.DrawLatex(0.19, 0.5, "#color[4]{Run-I}")
-	ttext.DrawLatex(0.32, 0.5, "#color[2]{LS-I}")
-	ttext.DrawLatex(0.50, 0.5, "#color[4]{Run-II}")
-	ttext.DrawLatex(0.73, 0.5, "#color[2]{LS-II}")
-	ttext.DrawLatex(0.88, 0.5, "#color[4]{Run-III}")
+	ttext.DrawLatex(0.19, 0.5, "#color[4]{Run I}")
+	ttext.DrawLatex(0.32, 0.5, "#color[2]{LS I}")
+	ttext.DrawLatex(0.50, 0.5, "#color[4]{Run II}")
+	ttext.DrawLatex(0.73, 0.5, "#color[2]{LS II}")
+	ttext.DrawLatex(0.88, 0.5, "#color[4]{Run III}")
 	
 	lPad.cd()
 	mgnT.Draw("AP")
@@ -275,7 +275,7 @@ for QuerrMod in [369120486,436262468]:
 	#legT.Draw()
 	
 	#draw the lumi text on the canvas
-	CMS_lumi.CMS_lumi(uPad, iPeriod, 10)
+	CMS_lumi.CMS_lumi(uPad, iPeriod, iPos)
 	
 	uPad.Update()
 	uPad.RedrawAxis()

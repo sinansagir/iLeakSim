@@ -12,11 +12,13 @@ tdrstyle.setTDRStyle()
 
 datesToPlot = ['2012_8_30','2016_10_11','2018_10_18']
 datesToPlot+= ['2022_10_20','2023_4_25','2023_5_12','2023_6_6','2023_7_16','2023_9_1']
+datesToPlot = ['2023_6_6','2023_9_1']
 
 #change the CMS_lumi variables (see CMS_lumi.py)
 CMS_lumi.lumi_7TeV = "6.1 fb^{-1}"
 CMS_lumi.lumi_8TeV = "13.4 fb^{-1}"
 CMS_lumi.lumi_13TeV= "2.3 fb^{-1}"
+CMS_lumi.lumi_13p6TeV= "2.3 fb^{-1}"
 CMS_lumi.writeExtraText = 1
 CMS_lumi.extraText = "Preliminary"
 CMS_lumi.lumi_sqrtS = "13 TeV" # used with iPeriod = 0, e.g. for simulation-only plots (default is an empty string)
@@ -67,19 +69,25 @@ linesLumi = infileLumi.readlines()
 infileLumi.close()
 IntLum=0.
 intLumis = {}
+IntLumRII=0.
+intLumisRII = {}
 for i in range(len(linesLumi)):
 	data = linesLumi[i].strip().split()
 	try: 
 		IntLum+=float(data[2])/1e6 # in INVFB
+		if data[0]=='01/01/2019': IntLumRII=IntLum
 		for date in datesToPlot:
 			year_=date.split('_')[0]
 			month_=date.split('_')[1] if len(date.split('_')[1])==2 else '0'+date.split('_')[1]
 			day_=date.split('_')[2] if len(date.split('_')[2])==2 else '0'+date.split('_')[2]
-			if data[0]==day_+'/'+month_+'/'+year_: intLumis[date]=IntLum
+			if data[0]==day_+'/'+month_+'/'+year_: 
+				intLumis[date]=IntLum
+				intLumisRII[date]=IntLumRII
 	except: print "Warning! => Unknown data format: ",data,"in",lumiFile
 print "Total Integrated Lumi:",IntLum
 for date in datesToPlot:
 	print "Total Integrated Lumi "+date+":",intLumis[date]
+	print "Total Integrated Lumi - RunIII "+date+":",intLumisRII[date]
 
 RFile = TFile(runDir+'/'+plotPath+'/outRfileAllModules.root')
 if not os.path.exists(runDir+'/'+plotPath+'_esthetic'): os.system('mkdir '+runDir+'/'+plotPath+'_esthetic')
@@ -102,10 +110,15 @@ for date in datesToPlot:
 	if date=='2012_8_30':
 		CMS_lumi.lumi_8TeV = "13.4 fb^{-1}"
 		iPeriod = 3
-	else:
+	elif int(date.split('_')[0])<2019:
 		CMS_lumi.lumi_8TeV = "23.3 fb^{-1}"
 		CMS_lumi.lumi_13TeV= str(round(intLumis[date]-23.3-6.1,1))+" fb^{-1}"
 		iPeriod = 7
+	else:
+		CMS_lumi.lumi_8TeV = "23.3 fb^{-1}"
+		CMS_lumi.lumi_13TeV= "163.6 fb^{-1}"
+		CMS_lumi.lumi_13p6TeV= str(round(intLumis[date]-intLumisRII[date],1))+" fb^{-1}"
+		iPeriod = 8
 			
 	for par in parts: 
 		gri['gri_'+par+'_'+date].SetMarkerColor(colors[par])
@@ -148,7 +161,7 @@ for date in datesToPlot:
 	mgnI.GetHistogram().SetMaximum(ileakMaxs[date])
 	mgnI.GetYaxis().SetTitleOffset(1.1)
 
-	legDummy = TLegend(0.15,0.70,0.40,0.90)
+	legDummy = TLegend(0.15,0.72,0.35,0.90)
 	legDummy.SetShadowColor(0)
 	#legDummy.SetFillColor(0)
 	#legDummy.SetFillStyle(0)
@@ -207,7 +220,7 @@ for date in datesToPlot:
 	mgnT.GetHistogram().SetMaximum(tsilMaxs[date])
 	mgnT.GetYaxis().SetTitleOffset(1.1)
 
-	legDummy = TLegend(0.15,0.70,0.40,0.90)
+	legDummy = TLegend(0.15,0.72,0.35,0.90)
 	legDummy.SetShadowColor(0)
 	#legDummy.SetFillColor(0)
 	#legDummy.SetFillStyle(0)
@@ -247,10 +260,15 @@ for date in datesToPlot:
 	if date=='2012_8_30':
 		CMS_lumi.lumi_8TeV = "13.4 fb^{-1}"
 		iPeriod = 3
-	else:
+	elif int(date.split('_')[0])<2019:
 		CMS_lumi.lumi_8TeV = "23.3 fb^{-1}"
 		CMS_lumi.lumi_13TeV= str(round(intLumis[date]-23.3-6.1,1))+" fb^{-1}"
 		iPeriod = 7
+	else:
+		CMS_lumi.lumi_8TeV = "23.3 fb^{-1}"
+		CMS_lumi.lumi_13TeV= "163.6 fb^{-1}"
+		CMS_lumi.lumi_13p6TeV= str(round(intLumis[date]-intLumisRII[date],1))+" fb^{-1}"
+		iPeriod = 8
 			
 	for par in parts: 
 		hi['hi_'+par+'_'+date].SetLineColor(colors[par])

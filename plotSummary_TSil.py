@@ -19,8 +19,8 @@ CMS_lumi.writeExtraText = 1
 CMS_lumi.extraText = "Preliminary"
 CMS_lumi.lumi_sqrtS = "13 TeV" # used with iPeriod = 0, e.g. for simulation-only plots (default is an empty string)
 
-iPos = 10
-if( iPos==0 ): CMS_lumi.relPosX = 0.12
+iPos = 0
+if( iPos==0 ): CMS_lumi.relPosX = 0.09
 
 H_ref = 600; 
 W_ref = 900;
@@ -443,7 +443,7 @@ x2=.85
 y2=.87
 x1=x2-.13
 y1=y2-.38
-leg_dmmy = TLegend(.17,.15,.33,.15+.175)
+leg_dmmy = TLegend(.35,.6,.59,.6+.175)
 SetOwnership( leg_dmmy, 0 )   # 0 = release (not keep), 1 = keep
 leg_dmmy.SetShadowColor(0)
 leg_dmmy.SetFillColor(0)
@@ -471,16 +471,16 @@ for subdet in ['TIB','TOB','TID','TEC']:
 		mgnIs[subdet].Add(IgrsAll[subdet+'_L'+str(lyr)+'_dat'],"p")
 		mgnIs[subdet+'ratio'].Add(IgrsAll[subdet+'_L'+str(lyr)+'_ratio'],"p")
 	if subdet=='TIB': 
-		CMS_lumi.lumi_sqrtS = "Tracker Inner Barrel [TIB]"
+		CMS_lumi.lumi_sqrtS = "TIB"
 		y1=y2-.28
 	if subdet=='TOB': 
-		CMS_lumi.lumi_sqrtS = "Tracker Outer Barrel [TOB]"
+		CMS_lumi.lumi_sqrtS = "TOB"
 		y1=y2-.38
 	if subdet=='TID': 
-		CMS_lumi.lumi_sqrtS = "Tracker Inner Disk [TID]"
+		CMS_lumi.lumi_sqrtS = "TID"
 		y1=y2-.23
 	if subdet=='TEC': 
-		CMS_lumi.lumi_sqrtS = "Tracker End-Cap [TEC]"
+		CMS_lumi.lumi_sqrtS = "TEC"
 		y1=y2-.43
 	canvs[subdet] = TCanvas(subdet,subdet,50,50,W,H)
 	canvs[subdet].SetFillColor(0)
@@ -558,16 +558,16 @@ for subdet in ['TIB','TOB','TID','TEC']:
 		mgnIs[subdet+'vslumi'].Add(IgrsAll[subdet+'_L'+str(lyr)+'_vs_lumi_dat'],"p")
 		mgnIs[subdet+'vslumiratio'].Add(IgrsAll[subdet+'_L'+str(lyr)+'_vs_lumi_ratio'],"p")
 	if subdet=='TIB': 
-		CMS_lumi.lumi_sqrtS = "Tracker Inner Barrel [TIB]"
+		CMS_lumi.lumi_sqrtS = "TIB"
 		y1=y2-.28
 	if subdet=='TOB': 
-		CMS_lumi.lumi_sqrtS = "Tracker Outer Barrel [TOB]"
+		CMS_lumi.lumi_sqrtS = "TOB"
 		y1=y2-.38
 	if subdet=='TID': 
-		CMS_lumi.lumi_sqrtS = "Tracker Inner Disk [TID]"
+		CMS_lumi.lumi_sqrtS = "TID"
 		y1=y2-.23
 	if subdet=='TEC': 
-		CMS_lumi.lumi_sqrtS = "Tracker End-Cap [TEC]"
+		CMS_lumi.lumi_sqrtS = "TEC"
 		y1=y2-.43
 	canvs[subdet+'vslumi'] = TCanvas(subdet+'vslumi',subdet+'vslumi',50,50,W,H)
 	canvs[subdet+'vslumi'].SetFillColor(0)

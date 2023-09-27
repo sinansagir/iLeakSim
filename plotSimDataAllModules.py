@@ -22,7 +22,6 @@ datesToPlot+= ['2022_10_20','2023_4_25','2023_5_12','2023_7_16','2023_9_1']
 datesToPlot+= ['2023_6_6','2023_6_8','2023_6_13','2023_6_28','2023_6_30']
 datesToPlot+= ['2023_7_9','2023_7_11','2023_7_12','2023_7_14','2023_7_15']
 datesToPlot+= ['2023_9_1','2023_9_2','2023_9_3','2023_9_4']
-datesToPlot = ['2023_6_6','2023_9_1']
 
 #READ IN TREE
 InTreeSim="DarkSimAllModules_"+simDate+"/DarkSimAllModules_"+simDate+".root"
